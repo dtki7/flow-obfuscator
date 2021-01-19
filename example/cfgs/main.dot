@@ -1,0 +1,14 @@
+digraph "CFG for 'main' function" {
+	label="CFG for 'main' function";
+
+	Node0x886050 [shape=record,label="{%0:\l  %1 = alloca %\"class.std::basic_ofstream\", align 8\l  %2 = alloca i8*\l  %3 = alloca i32\l  %4 = call i32 @_ZStorSt13_Ios_OpenmodeS_(i32 16, i32 32)\l  call void\l... @_ZNSt14basic_ofstreamIcSt11char_traitsIcEEC1EPKcSt13_Ios_Openmode(%\"class.std\l...::basic_ofstream\"* %1, i8* getelementptr inbounds ([13 x i8], [13 x i8]*\l... @.str, i64 0, i64 0), i32 %4)\l  %5 = bitcast %\"class.std::basic_ofstream\"* %1 to %\"class.std::basic_ostream\"*\l  %6 = invoke dereferenceable(272) %\"class.std::basic_ostream\"*\l... @_ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_PKc(%\"class.std::basic_os\l...tream\"* dereferenceable(272) %5, i8* getelementptr inbounds ([43 x i8], [43 x\l... i8]* @.str.1, i64 0, i64 0))\l          to label %7 unwind label %9\l}"];
+	Node0x886050 -> Node0x886300;
+	Node0x886050 -> Node0x8863a0;
+	Node0x886300 [shape=record,label="{%7:\l7:                                                \l  invoke void\l... @_ZNSt14basic_ofstreamIcSt11char_traitsIcEE5closeEv(%\"class.std::basic_ofstrea\l...m\"* %1)\l          to label %8 unwind label %9\l}"];
+	Node0x886300 -> Node0x886350;
+	Node0x886300 -> Node0x8863a0;
+	Node0x886350 [shape=record,label="{%8:\l8:                                                \l  call void\l... @_ZNSt14basic_ofstreamIcSt11char_traitsIcEED1Ev(%\"class.std::basic_ofstream\"*\l... %1) #3\l  ret i32 0\l}"];
+	Node0x8863a0 [shape=record,label="{%9:\l9:                                                \l  %10 = landingpad \{ i8*, i32 \}\l          cleanup\l  %11 = extractvalue \{ i8*, i32 \} %10, 0\l  store i8* %11, i8** %2, align 8\l  %12 = extractvalue \{ i8*, i32 \} %10, 1\l  store i32 %12, i32* %3, align 4\l  call void\l... @_ZNSt14basic_ofstreamIcSt11char_traitsIcEED1Ev(%\"class.std::basic_ofstream\"*\l... %1) #3\l  br label %13\l}"];
+	Node0x8863a0 -> Node0x8863f0;
+	Node0x8863f0 [shape=record,label="{%13:\l13:                                               \l  %14 = load i8*, i8** %2, align 8\l  %15 = load i32, i32* %3, align 4\l  %16 = insertvalue \{ i8*, i32 \} undef, i8* %14, 0\l  %17 = insertvalue \{ i8*, i32 \} %16, i32 %15, 1\l  resume \{ i8*, i32 \} %17\l}"];
+}

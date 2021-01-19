@@ -1,2 +1,3 @@
-IADD:00000000:/thread_test
-IDSET:/thread_test:7f011904914516281473914
+IMV:/thread_test:/thread_test.exe
+IADD:00000002:/example.exe
+IDSET:/example.exe:7f011916322165391854299

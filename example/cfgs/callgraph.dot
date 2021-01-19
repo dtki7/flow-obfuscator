@@ -1,0 +1,45 @@
+digraph "Call graph" {
+	label="Call graph";
+
+	Node0x1935d00 [shape=record,label="{external node}"];
+	Node0x1935d00 -> Node0x1935e10;
+	Node0x1935d00 -> Node0x1935f50;
+	Node0x1935d00 -> Node0x1935eb0;
+	Node0x1935d00 -> Node0x1936080;
+	Node0x1935d00 -> Node0x19360f0;
+	Node0x1935d00 -> Node0x1936190;
+	Node0x1935d00 -> Node0x1936120;
+	Node0x1935d00 -> Node0x1936410;
+	Node0x1935d00 -> Node0x19362d0;
+	Node0x1935d00 -> Node0x1936340;
+	Node0x1935d00 -> Node0x1936510;
+	Node0x1935da0 [shape=record,label="{__cxx_global_var_init}"];
+	Node0x1935da0 -> Node0x1935e10;
+	Node0x1935da0 -> Node0x1935eb0;
+	Node0x1935e10 [shape=record,label="{_ZNSt8ios_base4InitC1Ev}"];
+	Node0x1935e10 -> Node0x1935d30;
+	Node0x1935f50 [shape=record,label="{_ZNSt8ios_base4InitD1Ev}"];
+	Node0x1935f50 -> Node0x1935d30;
+	Node0x1935eb0 [shape=record,label="{__cxa_atexit}"];
+	Node0x1935eb0 -> Node0x1935d30;
+	Node0x1936410 [shape=record,label="{__gxx_personality_v0}"];
+	Node0x1936410 -> Node0x1935d30;
+	Node0x1936080 [shape=record,label="{main}"];
+	Node0x1936080 -> Node0x19360f0;
+	Node0x1936080 -> Node0x1936190;
+	Node0x1936080 -> Node0x1936120;
+	Node0x1936080 -> Node0x19362d0;
+	Node0x1936080 -> Node0x1936340;
+	Node0x1936080 -> Node0x1936340;
+	Node0x19360f0 [shape=record,label="{_ZStorSt13_Ios_OpenmodeS_}"];
+	Node0x1936190 [shape=record,label="{_ZNSt14basic_ofstreamIcSt11char_traitsIcEEC1EPKcSt13_Ios_Openmode}"];
+	Node0x1936190 -> Node0x1935d30;
+	Node0x1936120 [shape=record,label="{_ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_PKc}"];
+	Node0x1936120 -> Node0x1935d30;
+	Node0x19362d0 [shape=record,label="{_ZNSt14basic_ofstreamIcSt11char_traitsIcEE5closeEv}"];
+	Node0x19362d0 -> Node0x1935d30;
+	Node0x1936340 [shape=record,label="{_ZNSt14basic_ofstreamIcSt11char_traitsIcEED1Ev}"];
+	Node0x1936340 -> Node0x1935d30;
+	Node0x1936510 [shape=record,label="{_GLOBAL__sub_I_example.cpp}"];
+	Node0x1936510 -> Node0x1935da0;
+}

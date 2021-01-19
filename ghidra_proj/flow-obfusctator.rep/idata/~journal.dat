@@ -1,5 +1,0 @@
-IMV:/thread_test:/thread_test1
-IADD:00000001:/thread_test2
-IDSET:/thread_test2:7f0118c8b17210845836001
-IDEL:/thread_test1
-IMV:/thread_test2:/thread_test

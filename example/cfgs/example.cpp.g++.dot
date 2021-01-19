@@ -1,0 +1,127 @@
+digraph "example.cpp.227t.optimized" {
+overlap=false;
+subgraph "cluster_constexpr std::_Ios_Openmode std::operator|(std::_Ios_Openmode, std::_Ios_Openmode)" {
+	style="dashed";
+	color="black";
+	label="constexpr std::_Ios_Openmode std::operator|(std::_Ios_Openmode, std::_Ios_Openmode) ()";
+	fn_1095_basic_block_0 [shape=Mdiamond,style=filled,fillcolor=white,label="ENTRY"];
+
+	fn_1095_basic_block_1 [shape=Mdiamond,style=filled,fillcolor=white,label="EXIT"];
+
+	fn_1095_basic_block_2 [shape=record,style=filled,fillcolor=lightgrey,label="{ FREQ:0 |\<bb\ 2\>:\l\
+|_3\ =\ __a_1(D)\ \|\ __b_2(D);\l\
+}"];
+
+	fn_1095_basic_block_3 [shape=record,style=filled,fillcolor=lightgrey,label="{ FREQ:0 |\<bb\ 3\>:\l\
+|\<L0\>\ [0.00%]:\l\
+|return\ _3;\l\
+}"];
+
+	fn_1095_basic_block_0:s -> fn_1095_basic_block_2:n [style="solid,bold",color=blue,weight=100,constraint=true, label="[0%]"];
+	fn_1095_basic_block_2:s -> fn_1095_basic_block_3:n [style="solid,bold",color=blue,weight=100,constraint=true, label="[0%]"];
+	fn_1095_basic_block_3:s -> fn_1095_basic_block_1:n [style="solid,bold",color=black,weight=10,constraint=true, label="[0%]"];
+	fn_1095_basic_block_0:s -> fn_1095_basic_block_1:n [style="invis",constraint=true];
+}
+subgraph "cluster_int main()" {
+	style="dashed";
+	color="black";
+	label="int main() ()";
+	fn_1612_basic_block_0 [shape=Mdiamond,style=filled,fillcolor=white,label="ENTRY"];
+
+	fn_1612_basic_block_1 [shape=Mdiamond,style=filled,fillcolor=white,label="EXIT"];
+
+	fn_1612_basic_block_2 [shape=record,style=filled,fillcolor=lightgrey,label="{ FREQ:0 |\<bb\ 2\>:\l\
+|_1\ =\ std::operator\|\ (16,\ 32);\l\
+|std::basic_ofstream\<char\>::basic_ofstream\ (&MyFile,\ \"filename.txt\",\ _1);\l\
+|std::operator\<\<\ \<std::char_traits\<char\>\ \>\ (&MyFile.D.41003,\ \"Files\ can\ be\ tricky,\ but\ it\ is\ fun\ enough!\");\l\
+}"];
+
+	fn_1612_basic_block_3 [shape=record,style=filled,fillcolor=lightgrey,label="{ FREQ:0 |\<bb\ 3\>:\l\
+|std::basic_ofstream\<char\>::close\ (&MyFile);\l\
+}"];
+
+	fn_1612_basic_block_4 [shape=record,style=filled,fillcolor=lightgrey,label="{ FREQ:0 |\<bb\ 4\>:\l\
+|std::basic_ofstream\<char\>::~basic_ofstream\ (&MyFile);\l\
+|MyFile\ =\{v\}\ \{CLOBBER\};\l\
+|_11\ =\ 0;\l\
+}"];
+
+	fn_1612_basic_block_5 [shape=record,style=filled,fillcolor=lightgrey,label="{ FREQ:0 |\<bb\ 5\>:\l\
+|\<L0\>\ [0.00%]:\l\
+|return\ _11;\l\
+}"];
+
+	fn_1612_basic_block_6 [shape=record,style=filled,fillcolor=lightgrey,label="{ FREQ:0 |\<bb\ 6\>:\l\
+|\<L1\>\ [0.00%]:\l\
+|std::basic_ofstream\<char\>::~basic_ofstream\ (&MyFile);\l\
+|_3\ =\ __builtin_eh_pointer\ (2);\l\
+|__builtin_unwind_resume\ (_3);\l\
+}"];
+
+	fn_1612_basic_block_0:s -> fn_1612_basic_block_2:n [style="solid,bold",color=blue,weight=100,constraint=true, label="[0%]"];
+	fn_1612_basic_block_2:s -> fn_1612_basic_block_6:n [style="solid,bold",color=black,weight=10,constraint=true, label="[0%]"];
+	fn_1612_basic_block_2:s -> fn_1612_basic_block_3:n [style="solid,bold",color=blue,weight=100,constraint=true, label="[0%]"];
+	fn_1612_basic_block_3:s -> fn_1612_basic_block_6:n [style="solid,bold",color=black,weight=10,constraint=true, label="[0%]"];
+	fn_1612_basic_block_3:s -> fn_1612_basic_block_4:n [style="solid,bold",color=blue,weight=100,constraint=true, label="[0%]"];
+	fn_1612_basic_block_4:s -> fn_1612_basic_block_5:n [style="solid,bold",color=blue,weight=100,constraint=true, label="[0%]"];
+	fn_1612_basic_block_5:s -> fn_1612_basic_block_1:n [style="solid,bold",color=black,weight=10,constraint=true, label="[0%]"];
+	fn_1612_basic_block_0:s -> fn_1612_basic_block_1:n [style="invis",constraint=true];
+}
+subgraph "cluster_void __static_initialization_and_destruction_0(int, int)" {
+	style="dashed";
+	color="black";
+	label="void __static_initialization_and_destruction_0(int, int) ()";
+	fn_2145_basic_block_0 [shape=Mdiamond,style=filled,fillcolor=white,label="ENTRY"];
+
+	fn_2145_basic_block_1 [shape=Mdiamond,style=filled,fillcolor=white,label="EXIT"];
+
+	fn_2145_basic_block_2 [shape=record,style=filled,fillcolor=lightgrey,label="{ FREQ:0 |\<bb\ 2\>:\l\
+|if\ (__initialize_p_2(D)\ ==\ 1)\l\
+\ \ goto\ \<bb\ 3\>;\ [0.00%]\l\
+else\l\
+\ \ goto\ \<bb\ 5\>;\ [0.00%]\l\
+}"];
+
+	fn_2145_basic_block_3 [shape=record,style=filled,fillcolor=lightgrey,label="{ FREQ:0 |\<bb\ 3\>:\l\
+|if\ (__priority_4(D)\ ==\ 65535)\l\
+\ \ goto\ \<bb\ 4\>;\ [0.00%]\l\
+else\l\
+\ \ goto\ \<bb\ 5\>;\ [0.00%]\l\
+}"];
+
+	fn_2145_basic_block_4 [shape=record,style=filled,fillcolor=lightgrey,label="{ FREQ:0 |\<bb\ 4\>:\l\
+|std::ios_base::Init::Init\ (&__ioinit);\l\
+|__cxa_atexit\ (__comp_dtor\ ,\ &__ioinit,\ &__dso_handle);\l\
+}"];
+
+	fn_2145_basic_block_5 [shape=record,style=filled,fillcolor=lightgrey,label="{ FREQ:0 |\<bb\ 5\>:\l\
+|return;\l\
+}"];
+
+	fn_2145_basic_block_0:s -> fn_2145_basic_block_2:n [style="solid,bold",color=blue,weight=100,constraint=true, label="[0%]"];
+	fn_2145_basic_block_2:s -> fn_2145_basic_block_3:n [style="solid,bold",color=black,weight=10,constraint=true, label="[0%]"];
+	fn_2145_basic_block_2:s -> fn_2145_basic_block_5:n [style="solid,bold",color=black,weight=10,constraint=true, label="[0%]"];
+	fn_2145_basic_block_3:s -> fn_2145_basic_block_4:n [style="solid,bold",color=black,weight=10,constraint=true, label="[0%]"];
+	fn_2145_basic_block_3:s -> fn_2145_basic_block_5:n [style="solid,bold",color=black,weight=10,constraint=true, label="[0%]"];
+	fn_2145_basic_block_4:s -> fn_2145_basic_block_5:n [style="solid,bold",color=blue,weight=100,constraint=true, label="[0%]"];
+	fn_2145_basic_block_5:s -> fn_2145_basic_block_1:n [style="solid,bold",color=black,weight=10,constraint=true, label="[0%]"];
+	fn_2145_basic_block_0:s -> fn_2145_basic_block_1:n [style="invis",constraint=true];
+}
+subgraph "cluster_(static initializers for example.cpp)" {
+	style="dashed";
+	color="black";
+	label="(static initializers for example.cpp) ()";
+	fn_2146_basic_block_0 [shape=Mdiamond,style=filled,fillcolor=white,label="ENTRY"];
+
+	fn_2146_basic_block_1 [shape=Mdiamond,style=filled,fillcolor=white,label="EXIT"];
+
+	fn_2146_basic_block_2 [shape=record,style=filled,fillcolor=lightgrey,label="{ FREQ:0 |\<bb\ 2\>:\l\
+|__static_initialization_and_destruction_0\ (1,\ 65535);\l\
+|return;\l\
+}"];
+
+	fn_2146_basic_block_0:s -> fn_2146_basic_block_2:n [style="solid,bold",color=blue,weight=100,constraint=true, label="[0%]"];
+	fn_2146_basic_block_2:s -> fn_2146_basic_block_1:n [style="solid,bold",color=black,weight=10,constraint=true, label="[0%]"];
+	fn_2146_basic_block_0:s -> fn_2146_basic_block_1:n [style="invis",constraint=true];
+}
+}
