@@ -4,6 +4,9 @@ target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16
 target triple = "x86_64-pc-linux-gnu"
 
 %"class.std::ios_base::Init" = type { i8 }
+%"class.std::__cxx11::basic_string" = type { %"struct.std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_Alloc_hider", i64, %union.anon }
+%"struct.std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_Alloc_hider" = type { i8* }
+%union.anon = type { i64, [8 x i8] }
 %"class.std::basic_ostream" = type { i32 (...)**, %"class.std::basic_ios" }
 %"class.std::basic_ios" = type { %"class.std::ios_base", %"class.std::basic_ostream"*, i8, i8, %"class.std::basic_streambuf"*, %"class.std::ctype"*, %"class.std::num_put"*, %"class.std::num_get"* }
 %"class.std::ios_base" = type { i32 (...)**, i64, i64, i32, i32, i32, %"struct.std::ios_base::_Callback_list"*, %"struct.std::ios_base::_Words", [8 x %"struct.std::ios_base::_Words"], i32, %"struct.std::ios_base::_Words"*, %"class.std::locale" }
@@ -19,9 +22,7 @@ target triple = "x86_64-pc-linux-gnu"
 %struct.__locale_data = type opaque
 %"class.std::num_put" = type { %"class.std::locale::facet.base", [4 x i8] }
 %"class.std::num_get" = type { %"class.std::locale::facet.base", [4 x i8] }
-%"class.std::__cxx11::basic_string" = type { %"struct.std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_Alloc_hider", i64, %union.anon }
-%"struct.std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_Alloc_hider" = type { i8* }
-%union.anon = type { i64, [8 x i8] }
+%"class.std::allocator" = type { i8 }
 %"class.std::thread" = type { %"class.std::thread::id" }
 %"class.std::thread::id" = type { i64 }
 %"class.std::unique_ptr" = type { %"class.std::__uniq_ptr_impl" }
@@ -36,7 +37,6 @@ target triple = "x86_64-pc-linux-gnu"
 %"struct.std::_Tuple_impl.4" = type { %"struct.std::_Head_base.5" }
 %"struct.std::_Head_base.5" = type { i8* }
 %"struct.std::_Head_base.6" = type { void (%"class.std::__cxx11::basic_string"*)* }
-%"class.std::allocator" = type { i8 }
 %union.pthread_attr_t = type { i64, [48 x i8] }
 %"struct.std::thread::_State_impl" = type { %"struct.std::thread::_State", %"struct.std::thread::_Invoker" }
 %"struct.std::default_delete" = type { i8 }
@@ -189,9 +189,10 @@ $_ZTINSt6thread11_State_implINS_8_InvokerISt5tupleIJPFvNSt7__cxx1112basic_string
 
 @_ZStL8__ioinit = internal global %"class.std::ios_base::Init" zeroinitializer, align 1
 @__dso_handle = external hidden global i8
+@_Z5helloB5cxx11 = dso_local global %"class.std::__cxx11::basic_string" zeroinitializer, align 8
+@.str = private unnamed_addr constant [6 x i8] c"Hello\00", align 1
 @_ZSt4cout = external dso_local global %"class.std::basic_ostream", align 8
-@.str = private unnamed_addr constant [13 x i8] c"task1 says: \00", align 1
-@.str.1 = private unnamed_addr constant [6 x i8] c"Hello\00", align 1
+@.str.2 = private unnamed_addr constant [13 x i8] c"task1 says: \00", align 1
 @_ZTVNSt6thread11_State_implINS_8_InvokerISt5tupleIJPFvNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEEPKcEEEEEE = linkonce_odr dso_local unnamed_addr constant { [5 x i8*] } { [5 x i8*] [i8* null, i8* bitcast ({ i8*, i8*, i8* }* @_ZTINSt6thread11_State_implINS_8_InvokerISt5tupleIJPFvNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEEPKcEEEEEE to i8*), i8* bitcast (void (%"struct.std::thread::_State_impl"*)* @_ZNSt6thread11_State_implINS_8_InvokerISt5tupleIJPFvNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEEPKcEEEEED2Ev to i8*), i8* bitcast (void (%"struct.std::thread::_State_impl"*)* @_ZNSt6thread11_State_implINS_8_InvokerISt5tupleIJPFvNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEEPKcEEEEED0Ev to i8*), i8* bitcast (void (%"struct.std::thread::_State_impl"*)* @_ZNSt6thread11_State_implINS_8_InvokerISt5tupleIJPFvNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEEPKcEEEEE6_M_runEv to i8*)] }, comdat, align 8
 @_ZTVN10__cxxabiv120__si_class_type_infoE = external dso_local global i8*
 @_ZTSNSt6thread11_State_implINS_8_InvokerISt5tupleIJPFvNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEEPKcEEEEEE = linkonce_odr dso_local constant [113 x i8] c"NSt6thread11_State_implINS_8_InvokerISt5tupleIJPFvNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEEPKcEEEEEE\00", comdat, align 1
@@ -215,9 +216,54 @@ declare dso_local void @_ZNSt8ios_base4InitD1Ev(%"class.std::ios_base::Init"*) u
 ; Function Attrs: nounwind
 declare dso_local i32 @__cxa_atexit(void (i8*)*, i8*, i8*) #3
 
+; Function Attrs: noinline uwtable
+define internal void @__cxx_global_var_init.1() #0 section ".text.startup" personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
+  %1 = alloca %"class.std::allocator", align 1
+  %2 = alloca i8*
+  %3 = alloca i32
+  call void @_ZNSaIcEC1Ev(%"class.std::allocator"* %1) #3
+  invoke void @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEC1EPKcRKS3_(%"class.std::__cxx11::basic_string"* @_Z5helloB5cxx11, i8* getelementptr inbounds ([6 x i8], [6 x i8]* @.str, i64 0, i64 0), %"class.std::allocator"* dereferenceable(1) %1)
+          to label %4 unwind label %6
+
+4:                                                ; preds = %0
+  call void @_ZNSaIcED1Ev(%"class.std::allocator"* %1) #3
+  %5 = call i32 @__cxa_atexit(void (i8*)* bitcast (void (%"class.std::__cxx11::basic_string"*)* @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEED1Ev to void (i8*)*), i8* bitcast (%"class.std::__cxx11::basic_string"* @_Z5helloB5cxx11 to i8*), i8* @__dso_handle) #3
+  ret void
+
+6:                                                ; preds = %0
+  %7 = landingpad { i8*, i32 }
+          cleanup
+  %8 = extractvalue { i8*, i32 } %7, 0
+  store i8* %8, i8** %2, align 8
+  %9 = extractvalue { i8*, i32 } %7, 1
+  store i32 %9, i32* %3, align 4
+  call void @_ZNSaIcED1Ev(%"class.std::allocator"* %1) #3
+  br label %10
+
+10:                                               ; preds = %6
+  %11 = load i8*, i8** %2, align 8
+  %12 = load i32, i32* %3, align 4
+  %13 = insertvalue { i8*, i32 } undef, i8* %11, 0
+  %14 = insertvalue { i8*, i32 } %13, i32 %12, 1
+  resume { i8*, i32 } %14
+}
+
+; Function Attrs: nounwind
+declare dso_local void @_ZNSaIcEC1Ev(%"class.std::allocator"*) unnamed_addr #2
+
+declare dso_local void @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEC1EPKcRKS3_(%"class.std::__cxx11::basic_string"*, i8*, %"class.std::allocator"* dereferenceable(1)) unnamed_addr #1
+
+declare dso_local i32 @__gxx_personality_v0(...)
+
+; Function Attrs: nounwind
+declare dso_local void @_ZNSaIcED1Ev(%"class.std::allocator"*) unnamed_addr #2
+
+; Function Attrs: nounwind
+declare dso_local void @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEED1Ev(%"class.std::__cxx11::basic_string"*) unnamed_addr #2
+
 ; Function Attrs: noinline optnone uwtable
 define dso_local void @_Z5task1NSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE(%"class.std::__cxx11::basic_string"* %0) #4 {
-  %2 = call dereferenceable(272) %"class.std::basic_ostream"* @_ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_PKc(%"class.std::basic_ostream"* dereferenceable(272) @_ZSt4cout, i8* getelementptr inbounds ([13 x i8], [13 x i8]* @.str, i64 0, i64 0))
+  %2 = call dereferenceable(272) %"class.std::basic_ostream"* @_ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_PKc(%"class.std::basic_ostream"* dereferenceable(272) @_ZSt4cout, i8* getelementptr inbounds ([13 x i8], [13 x i8]* @.str.2, i64 0, i64 0))
   %3 = call dereferenceable(272) %"class.std::basic_ostream"* @_ZStlsIcSt11char_traitsIcESaIcEERSt13basic_ostreamIT_T0_ES7_RKNSt7__cxx1112basic_stringIS4_S5_T1_EE(%"class.std::basic_ostream"* dereferenceable(272) %2, %"class.std::__cxx11::basic_string"* dereferenceable(32) %0)
   %4 = call dereferenceable(272) %"class.std::basic_ostream"* @_ZNSolsEPFRSoS_E(%"class.std::basic_ostream"* %3, %"class.std::basic_ostream"* (%"class.std::basic_ostream"*)* @_ZSt4endlIcSt11char_traitsIcEERSt13basic_ostreamIT_T0_ES6_)
   ret void
@@ -236,7 +282,7 @@ define dso_local void @_Z6stdlibv() #4 personality i8* bitcast (i32 (...)* @__gx
   %1 = alloca %"class.std::thread", align 8
   %2 = alloca i8*
   %3 = alloca i32
-  call void @_ZNSt6threadC2IRFvNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEEJRA6_KcEEEOT_DpOT0_(%"class.std::thread"* %1, void (%"class.std::__cxx11::basic_string"*)* @_Z5task1NSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE, [6 x i8]* dereferenceable(6) @.str.1)
+  call void @_ZNSt6threadC2IRFvNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEEEJRA6_KcEEEOT_DpOT0_(%"class.std::thread"* %1, void (%"class.std::__cxx11::basic_string"*)* @_Z5task1NSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE, [6 x i8]* dereferenceable(6) @.str)
   invoke void @_ZNSt6thread4joinEv(%"class.std::thread"* %1)
           to label %4 unwind label %5
 
@@ -313,8 +359,6 @@ define linkonce_odr dso_local void @_ZNSt6threadC2IRFvNSt7__cxx1112basic_stringI
 
 declare dso_local void @_ZNSt6thread4joinEv(%"class.std::thread"*) #1
 
-declare dso_local i32 @__gxx_personality_v0(...)
-
 ; Function Attrs: noinline nounwind optnone uwtable
 define linkonce_odr dso_local void @_ZNSt6threadD2Ev(%"class.std::thread"* %0) unnamed_addr #5 comdat align 2 {
   %2 = alloca %"class.std::thread"*, align 8
@@ -332,71 +376,18 @@ define linkonce_odr dso_local void @_ZNSt6threadD2Ev(%"class.std::thread"* %0) u
 }
 
 ; Function Attrs: noinline optnone uwtable
-define dso_local void @_Z12plainPthreadv() #4 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
+define dso_local void @_Z12plainPthreadv() #4 {
   %1 = alloca i64, align 8
-  %2 = alloca %"class.std::__cxx11::basic_string", align 8
-  %3 = alloca %"class.std::allocator", align 1
-  %4 = alloca i8*
-  %5 = alloca i32
-  call void @_ZNSaIcEC1Ev(%"class.std::allocator"* %3) #3
-  invoke void @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEC1EPKcRKS3_(%"class.std::__cxx11::basic_string"* %2, i8* getelementptr inbounds ([6 x i8], [6 x i8]* @.str.1, i64 0, i64 0), %"class.std::allocator"* dereferenceable(1) %3)
-          to label %6 unwind label %12
-
-6:                                                ; preds = %0
-  call void @_ZNSaIcED1Ev(%"class.std::allocator"* %3) #3
-  %7 = bitcast %"class.std::__cxx11::basic_string"* %2 to i8*
-  %8 = call i32 @pthread_create(i64* %1, %union.pthread_attr_t* null, i8* (i8*)* bitcast (void (%"class.std::__cxx11::basic_string"*)* @_Z5task1NSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE to i8* (i8*)*), i8* %7) #3
-  %9 = load i64, i64* %1, align 8
-  %10 = invoke i32 @pthread_join(i64 %9, i8** null)
-          to label %11 unwind label %16
-
-11:                                               ; preds = %6
-  call void @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEED1Ev(%"class.std::__cxx11::basic_string"* %2) #3
+  %2 = call i32 @pthread_create(i64* %1, %union.pthread_attr_t* null, i8* (i8*)* bitcast (void (%"class.std::__cxx11::basic_string"*)* @_Z5task1NSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE to i8* (i8*)*), i8* bitcast (%"class.std::__cxx11::basic_string"* @_Z5helloB5cxx11 to i8*)) #3
+  %3 = load i64, i64* %1, align 8
+  %4 = call i32 @pthread_join(i64 %3, i8** null)
   ret void
-
-12:                                               ; preds = %0
-  %13 = landingpad { i8*, i32 }
-          cleanup
-  %14 = extractvalue { i8*, i32 } %13, 0
-  store i8* %14, i8** %4, align 8
-  %15 = extractvalue { i8*, i32 } %13, 1
-  store i32 %15, i32* %5, align 4
-  call void @_ZNSaIcED1Ev(%"class.std::allocator"* %3) #3
-  br label %20
-
-16:                                               ; preds = %6
-  %17 = landingpad { i8*, i32 }
-          cleanup
-  %18 = extractvalue { i8*, i32 } %17, 0
-  store i8* %18, i8** %4, align 8
-  %19 = extractvalue { i8*, i32 } %17, 1
-  store i32 %19, i32* %5, align 4
-  call void @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEED1Ev(%"class.std::__cxx11::basic_string"* %2) #3
-  br label %20
-
-20:                                               ; preds = %16, %12
-  %21 = load i8*, i8** %4, align 8
-  %22 = load i32, i32* %5, align 4
-  %23 = insertvalue { i8*, i32 } undef, i8* %21, 0
-  %24 = insertvalue { i8*, i32 } %23, i32 %22, 1
-  resume { i8*, i32 } %24
 }
-
-; Function Attrs: nounwind
-declare dso_local void @_ZNSaIcEC1Ev(%"class.std::allocator"*) unnamed_addr #2
-
-declare dso_local void @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEC1EPKcRKS3_(%"class.std::__cxx11::basic_string"*, i8*, %"class.std::allocator"* dereferenceable(1)) unnamed_addr #1
-
-; Function Attrs: nounwind
-declare dso_local void @_ZNSaIcED1Ev(%"class.std::allocator"*) unnamed_addr #2
 
 ; Function Attrs: nounwind
 declare !callback !2 dso_local i32 @pthread_create(i64*, %union.pthread_attr_t*, i8* (i8*)*, i8*) #2
 
 declare dso_local i32 @pthread_join(i64, i8**) #1
-
-; Function Attrs: nounwind
-declare dso_local void @_ZNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEED1Ev(%"class.std::__cxx11::basic_string"*) unnamed_addr #2
 
 ; Function Attrs: noinline norecurse optnone uwtable
 define dso_local i32 @main() #6 {
@@ -1343,6 +1334,7 @@ define linkonce_odr dso_local dereferenceable(1) %"struct.std::default_delete"* 
 ; Function Attrs: noinline uwtable
 define internal void @_GLOBAL__sub_I_thread_test.cpp() #0 section ".text.startup" {
   call void @__cxx_global_var_init()
+  call void @__cxx_global_var_init.1()
   ret void
 }
 

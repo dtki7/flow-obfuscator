@@ -6,6 +6,6 @@
         <STATE NAME="FILE_ID" TYPE="string" VALUE="7f011916322165391854299" />
         <STATE NAME="FILE_TYPE" TYPE="int" VALUE="0" />
         <STATE NAME="READ_ONLY" TYPE="boolean" VALUE="false" />
-        <STATE NAME="NAME" TYPE="string" VALUE="example.exe" />
+        <STATE NAME="NAME" TYPE="string" VALUE="example" />
     </BASIC_INFO>
 </FILE_INFO>
