@@ -1,0 +1,12 @@
+digraph "CFG for 'main' function" {
+	label="CFG for 'main' function";
+
+	Node0x1a18610 [shape=record,label="{%0:\l  %1 = alloca %\"class.std::basic_ofstream\", align 8\l  %2 = call %\"class.std::basic_ofstream\"*\l... @\"??0?$basic_ofstream@DU?$char_traits@D@std@@@std@@QEAA@PEBDHH@Z\"(%\"class.std:\l...:basic_ofstream\"* %1, i8* getelementptr inbounds ([13 x i8], [13 x i8]*\l... @\"??_C@_0N@DHMDELMH@filename?4txt?$AA@\", i64 0, i64 0), i32 2, i32 64, i32 1)\l  %3 = bitcast %\"class.std::basic_ofstream\"* %1 to %\"class.std::basic_ostream\"*\l  %4 = invoke nonnull align 8 dereferenceable(8) %\"class.std::basic_ostream\"*\l...\l... @\"??$?6U?$char_traits@D@std@@@std@@YAAEAV?$basic_ostream@DU?$char_traits@D@std\l...@@@0@AEAV10@PEBD@Z\"(%\"class.std::basic_ostream\"* nonnull align 8\l... dereferenceable(8) %3, i8* getelementptr inbounds ([43 x i8], [43 x i8]*\l... @\"??_C@_0CL@GPMIIGME@Files?5can?5be?5tricky?0?5but?5it?5is?5f@\", i64 0, i64\l... 0))\l          to label %5 unwind label %7\l}"];
+	Node0x1a18610 -> Node0x1a6e610;
+	Node0x1a18610 -> Node0x1a6e6b0;
+	Node0x1a6e610 [shape=record,label="{%5:\l5:                                                \l  invoke void\l... @\"?close@?$basic_ofstream@DU?$char_traits@D@std@@@std@@QEAAXXZ\"(%\"class.std::b\l...asic_ofstream\"* %1)\l          to label %6 unwind label %7\l}"];
+	Node0x1a6e610 -> Node0x1a6e660;
+	Node0x1a6e610 -> Node0x1a6e6b0;
+	Node0x1a6e660 [shape=record,label="{%6:\l6:                                                \l  call void\l... @\"??_D?$basic_ofstream@DU?$char_traits@D@std@@@std@@QEAAXXZ\"(%\"class.std::basi\l...c_ofstream\"* %1) #12\l  ret i32 0\l}"];
+	Node0x1a6e6b0 [shape=record,label="{%7:\l7:                                                \l  %8 = cleanuppad within none []\l  call void\l... @\"??_D?$basic_ofstream@DU?$char_traits@D@std@@@std@@QEAAXXZ\"(%\"class.std::basi\l...c_ofstream\"* %1) #12 [ \"funclet\"(token %8) ]\l  cleanupret from %8 unwind to caller\l}"];
+}
