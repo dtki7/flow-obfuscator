@@ -8,25 +8,36 @@
 
 using namespace llvm;
 
+GlobalVariable *createGlobal(Module &M, Type *type) {
+	auto globVar = new GlobalVariable(M, type, false, GlobalValue::LinkageTypes::PrivateLinkage, nullptr);
+	globVar->setInitializer(ConstantAggregateZero::get(globVar->getType()->getContainedType(0)));
+	return globVar;
+}
+
 PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) {
 	auto &ctx = M.getContext();
 	for (auto &function : M.functions()) {
 		if (function.getName().compare("main")) continue;  // DEBUG
 
+		// get all basic blocks
+		std::vector<BasicBlock*> basicBlocks;
 		for (auto &basicBlock : function.getBasicBlockList()) {
-			IRBuilder<> builder(&basicBlock);
+			basicBlocks.push_back(&basicBlock);
+		}
+
+		// make variables global
+		for (auto &basicBlock : basicBlocks) {
+			IRBuilder<> builder(basicBlock);
 
 			// get all instructions
 			std::vector<Instruction*> bbInstrs;
-			for (auto &instr : basicBlock.instructionsWithoutDebug()) {
+			for (auto &instr : basicBlock->instructionsWithoutDebug()) {
 				bbInstrs.push_back(&instr);
 			}
 
-			// make variables global
 			for (auto instr : bbInstrs) {
 				// TODO (optional) check if uses only in this block and continue
-				if (instr->getType() == Type::getVoidTy(ctx)
-						|| instr->getType()->getNumContainedTypes() > 1)
+				if (instr->getType() == Type::getVoidTy(ctx))
 					continue;
 
 				// DEBUG
@@ -40,14 +51,13 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 					type = type->getContainedType(0);
 				}
 
-				// create global variable and set zero initializer
-				auto globVar = new GlobalVariable(M, type, false, GlobalValue::LinkageTypes::PrivateLinkage, nullptr);
-				globVar->setInitializer(ConstantAggregateZero::get(globVar->getType()->getContainedType(0)));
+				auto globVar = createGlobal(M, type);
 
 				if (isa<AllocaInst>(instr)) {
 					// just replace and remove
 					instr->replaceAllUsesWith(globVar);
-					instr->removeFromParent();
+					assert(instr->isSafeToRemove());
+					instr->eraseFromParent();
 				} else {
 					// create a loader for every user ...
 					for (auto user : instr->users()) {
@@ -60,24 +70,77 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 					if (nextNode) {
 						builder.SetInsertPoint(nextNode);
 					} else {
-						builder.SetInsertPoint(&basicBlock);
+						builder.SetInsertPoint(basicBlock);
 					}
 					builder.CreateStore(instr, globVar);
 				}
 			}
 
-			// create new function with basic block
-			// auto funcType = FunctionType::get(Type::getVoidTy(ctx), false);
-			// auto outFunc = Function::Create(funcType, GlobalValue::LinkageTypes::PrivateLinkage);
-			// auto syncBlock = BasicBlock::Create(ctx, "sync", outFunc);
-			// IRBuilder<> syncBuilder(syncBlock);
-
+			// delete branch and append ret if necessary
+			auto lastInstr = &*--basicBlock->end();
+			if (isa<BranchInst>(lastInstr)) {
+				lastInstr->eraseFromParent();
+				lastInstr = &*--basicBlock->end();
+			}
+			if (!lastInstr->isTerminator() || isa<InvokeInst>(lastInstr)) {
+				builder.SetInsertPoint(basicBlock);
+				builder.CreateRetVoid();
+			}
 		}
-		// move the basic blocks
-		// basicBlock.moveAfter(syncBlock);
-		// break;
-	}
 
+		// move basic blocks to new function
+		for (auto basicBlock : basicBlocks) {
+			// create new function with entry basic block and move basic block to it
+			auto funcType = FunctionType::get(Type::getVoidTy(ctx), false);
+			auto outFunc = Function::Create(funcType, GlobalValue::LinkageTypes::PrivateLinkage, "newFunc", M);
+			auto syncBlock = BasicBlock::Create(ctx, "sync", outFunc);
+			basicBlock->moveAfter(syncBlock);
+
+			// TODO: create sync block
+			IRBuilder<> syncBuilder(syncBlock);
+			syncBuilder.CreateBr(basicBlock);
+
+			// handle invoke terminator
+			auto instr = &*std::prev(basicBlock->end(), 2);
+			if (isa<StoreInst>(instr)) {  // invoke with return value
+				instr = &*std::prev(basicBlock->end(), 3);
+			}
+			if(isa<InvokeInst>(instr)) {
+				auto invokeInstr = cast<InvokeInst>(instr);
+				auto origLandingPad = invokeInstr->getLandingPadInst();
+
+				// create basic block for landing
+				auto landingPadBlock = BasicBlock::Create(ctx, "landing", outFunc);
+				IRBuilder<> builder(landingPadBlock);
+				auto ret = builder.CreateRetVoid();
+
+				// clone and insert the landing pad and the store instruction
+				auto landingPad = origLandingPad->clone();
+				auto storeInstr = origLandingPad->getNextNode()->clone();
+				landingPad->insertBefore(ret);
+				storeInstr->insertBefore(ret);
+				storeInstr->setOperand(0, landingPad);
+
+				// set the destinations of the invoke instr
+				auto normalDest = basicBlock->splitBasicBlock(invokeInstr->getNextNode());
+				(*--basicBlock->end()).eraseFromParent();
+				normalDest->moveAfter(basicBlock);
+
+				invokeInstr->setNormalDest(normalDest);
+				invokeInstr->setUnwindDest(landingPadBlock);
+			}
+
+			// landing pads should've beem cloned to the new function
+			instr = basicBlock->getFirstNonPHI();
+			if(isa<LandingPadInst>(instr)) {
+				assert(instr->getNextNode()->isSafeToRemove());
+				assert(instr->isSafeToRemove());
+				instr->getNextNode()->eraseFromParent();
+				instr->eraseFromParent();
+			}
+			outFunc->print(outs());  // DEBUG
+		}
+	}
     return PreservedAnalyses::all();
 }
 
