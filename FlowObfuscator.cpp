@@ -11,92 +11,65 @@ using namespace llvm;
 PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) {
 	auto &ctx = M.getContext();
 	for (auto &function : M.functions()) {
-		if (function.getName().compare("main")) continue;
+		if (function.getName().compare("main")) continue;  // DEBUG
 
 		for (auto &basicBlock : function.getBasicBlockList()) {
-			// outs() << "bb\n";
-			// outs() << basicBlock << "\n";
-			// determine outgoing variables
-			// for (auto user : basicBlock.users()) {
-			// 	outs() << "user: " << isa<Instruction>(user) << "\n";
-			// 	user->print(outs());
-			// }
-
 			IRBuilder<> builder(&basicBlock);
-			// make variables global
+
+			// get all instructions
 			std::vector<Instruction*> bbInstrs;
 			for (auto &instr : basicBlock.instructionsWithoutDebug()) {
 				bbInstrs.push_back(&instr);
 			}
 
+			// make variables global
 			for (auto instr : bbInstrs) {
-				// check if uses in other blocks
-				// || instr->getType()->getNumContainedTypes() < 1
-				if (instr->getType() == Type::getVoidTy(ctx))
+				// TODO (optional) check if uses only in this block and continue
+				if (instr->getType() == Type::getVoidTy(ctx)
+						|| instr->getType()->getNumContainedTypes() > 1)
 					continue;
 
+				// DEBUG
 				outs() << "instr: ";
 				instr->print(outs());
 				outs() << "\n";
-				// for (auto user : instr->users()) {
-				// 	outs() << "user:\n";
-				// 	user->print(outs());
-				// 	outs() << "\n";
-				// }
-				// ->getContainedType(0)
-				//instr->getType()->print(outs());
 
+				// stack allocations get substituted directly, so we need the contained type
 				Type *type = instr->getType();
 				if (isa<AllocaInst>(instr)) {
 					type = type->getContainedType(0);
 				}
-				type->print(outs());
-				outs() << "\n";
 
-				auto globVar = new GlobalVariable(M, type, false, GlobalValue::LinkageTypes::PrivateLinkage, nullptr, "globBar");
+				// create global variable and set zero initializer
+				auto globVar = new GlobalVariable(M, type, false, GlobalValue::LinkageTypes::PrivateLinkage, nullptr);
 				globVar->setInitializer(ConstantAggregateZero::get(globVar->getType()->getContainedType(0)));
 
 				if (isa<AllocaInst>(instr)) {
+					// just replace and remove
 					instr->replaceAllUsesWith(globVar);
-				} else {
-					for (auto user : instr->users()) {
-						assert(isa<Instruction>(user));
-						auto userInstr = cast<Instruction>(user);
-						builder.SetInsertPoint(userInstr);
-						auto load = builder.CreateLoad(globVar);
-						instr->replaceAllUsesWith(load);
-					}
-				}
-
-				auto nextNode = instr->getNextNode();
-				if (nextNode) {
-					builder.SetInsertPoint(nextNode);
-				} else {
-					builder.SetInsertPoint(&basicBlock);
-				}
-				if (isa<AllocaInst>(instr)) {
 					instr->removeFromParent();
 				} else {
-					instr->getType()->print(outs());
-					outs() << "\n";
-					globVar->getType()->print(outs());
-					outs() << "\n\n";
-					builder.CreateStore(instr, globVar)->print(outs());
-				}
-				outs() << "\n";
-				outs() << "\n";
+					// create a loader for every user ...
+					for (auto user : instr->users()) {
+						builder.SetInsertPoint(cast<Instruction>(user));
+						instr->replaceAllUsesWith(builder.CreateLoad(globVar));
+					}
 
-				if (!isa<AllocaInst>(instr)) {
-					//break;
+					// and store the return value
+					auto nextNode = instr->getNextNode();
+					if (nextNode) {
+						builder.SetInsertPoint(nextNode);
+					} else {
+						builder.SetInsertPoint(&basicBlock);
+					}
+					builder.CreateStore(instr, globVar);
 				}
 			}
-			basicBlock.print(outs());
-			break;
 
 			// create new function with basic block
-			auto funcType = FunctionType::get(Type::getVoidTy(ctx), false);
-			auto outFunc = Function::Create(funcType, GlobalValue::LinkageTypes::PrivateLinkage);
-			auto syncBlock = BasicBlock::Create(ctx, "sync", outFunc);
+			// auto funcType = FunctionType::get(Type::getVoidTy(ctx), false);
+			// auto outFunc = Function::Create(funcType, GlobalValue::LinkageTypes::PrivateLinkage);
+			// auto syncBlock = BasicBlock::Create(ctx, "sync", outFunc);
 			// IRBuilder<> syncBuilder(syncBlock);
 
 		}
