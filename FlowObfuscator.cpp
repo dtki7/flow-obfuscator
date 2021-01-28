@@ -76,9 +76,13 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 					instr->eraseFromParent();
 				} else {
 					// create a loader for every user ...
+					std::vector<User*> users;
 					for (auto user : instr->users()) {
+						users.push_back(user);
+					}
+					for (auto user : users) {
 						builder.SetInsertPoint(cast<Instruction>(user));
-						instr->replaceAllUsesWith(builder.CreateLoad(globVar));
+						user->replaceUsesOfWith(instr, builder.CreateLoad(globVar));
 					}
 
 					// and store the return value
@@ -109,9 +113,11 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		//
 		// move basic blocks to new function and create call from func
 		//
+		auto mainBlock = BasicBlock::Create(ctx, "main", function);
+		IRBuilder<> mainBuilder(mainBlock);
 		for (auto basicBlock : basicBlocks) {
-			// create new function with entry basic block and move basic block to it
-			std::vector<Argument*> args;
+			// get affected arguments
+			std::vector<Value*> args;
 			std::vector<Type*> argsTypes;
 			for (auto &arg : function->args()) {
 				if (arg.isUsedInBasicBlock(basicBlock)) {
@@ -119,10 +125,24 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 					argsTypes.push_back(arg.getType());
 				}
 			}
-			auto funcType = FunctionType::get(Type::getVoidTy(ctx), argsTypes, false);
+
+			// handle return type
+			auto retType = Type::getVoidTy(ctx);
+			auto lastInstr = &*--basicBlock->end();
+			if (isa<ReturnInst>(lastInstr)) {
+				auto retInstr = cast<ReturnInst>(lastInstr);
+				if (retInstr->getReturnValue()) {
+					retType = retInstr->getReturnValue()->getType();
+				}
+			}
+
+			// create function and move basic block to it
+			auto funcType = FunctionType::get(retType, argsTypes, false);
 			auto outFunc = Function::Create(funcType, GlobalValue::LinkageTypes::PrivateLinkage, "newFunc", M);
 			auto syncBlock = BasicBlock::Create(ctx, "sync", outFunc);
 			basicBlock->moveAfter(syncBlock);
+
+			// connect the arguments
 			for (unsigned i = 0; i < args.size(); i++) {
 				args[i]->replaceAllUsesWith(outFunc->getArg(i));
 			}
@@ -131,8 +151,14 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			IRBuilder<> syncBuilder(syncBlock);
 			syncBuilder.CreateBr(basicBlock);
 
+			// handle resume terminator (TODO: test error)
+			auto instr = &*std::prev(basicBlock->end(), 1);
+			if (isa<ResumeInst>(instr)) {
+				outFunc->setPersonalityFn(function->getPersonalityFn());
+			}
+
 			// handle invoke terminator
-			auto instr = &*std::prev(basicBlock->end(), 2);
+			instr = &*std::prev(basicBlock->end(), 2);
 			if (isa<StoreInst>(instr)) {  // invoke with return value
 				instr = &*std::prev(basicBlock->end(), 3);
 			}
@@ -154,11 +180,13 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 
 				// set the destinations of the invoke instr
 				auto normalDest = basicBlock->splitBasicBlock(invokeInstr->getNextNode());
-				(*--basicBlock->end()).eraseFromParent();
+				(*--basicBlock->end()).eraseFromParent();  // automatically created branch
 				normalDest->moveAfter(basicBlock);
-
 				invokeInstr->setNormalDest(normalDest);
 				invokeInstr->setUnwindDest(landingPadBlock);
+
+				// move personality function for landing pad
+				outFunc->setPersonalityFn(function->getPersonalityFn());
 			}
 
 			// landing pads should've beem cloned to the new function
@@ -171,21 +199,22 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			}
 			outFunc->print(outs());  // DEBUG
 
-			// TODO: create call to function in func
-			auto mainBlock = BasicBlock::Create(ctx, "caller", function);
-			IRBuilder<> builder(mainBlock);
-			auto retType = function->getReturnType();
-			if (retType->isVoidTy()) {
-				builder.CreateRetVoid();
-			} else {
-				builder.CreateRet(ConstantAggregateZero::get(retType));
-			}
+			// create call to function in func (TODO: threads)
+			mainBuilder.CreateCall(outFunc, args);
 		}
-		function->print(outs());  // DEBUG
 
+		// DEBUG
+		auto retType = function->getReturnType();
+		if (retType->isVoidTy()) {
+			mainBuilder.CreateRetVoid();
+		} else {
+			mainBuilder.CreateRet(ConstantAggregateZero::get(retType));
+		}
+
+		function->print(outs());  // DEBUG
 		outs() << "\n\n";  // DEBUG
 	}
-    return PreservedAnalyses::all();
+    return PreservedAnalyses::all();  // DEBUG (actually none)
 }
 
 extern "C" ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK
