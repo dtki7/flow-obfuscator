@@ -14,6 +14,44 @@ GlobalVariable *createGlobal(Module &M, Type *type) {
 	return globVar;
 }
 
+void createLoader(Value* val, GlobalVariable *globVar, IRBuilder<> &builder) {
+	std::vector<User*> users;
+	for (auto user : val->users()) {
+		users.push_back(user);
+	}
+	for (auto user : users) {
+		builder.SetInsertPoint(cast<Instruction>(user));
+		user->replaceUsesOfWith(val, builder.CreateLoad(globVar));
+	}
+}
+
+void createStore(Instruction *instr, GlobalVariable * globVar, IRBuilder<> &builder) {
+	auto nextNode = instr->getNextNode();
+	if (nextNode) {
+		builder.SetInsertPoint(nextNode);
+	} else {
+		builder.SetInsertPoint(instr);
+		builder.SetInsertPoint(builder.GetInsertBlock());
+	}
+	builder.CreateStore(instr, globVar);
+}
+
+std::vector<BasicBlock*> getAllBasicBlocks(Function *function) {
+	std::vector<BasicBlock*> basicBlocks;
+	for (auto &basicBlock : function->getBasicBlockList()) {
+		basicBlocks.push_back(&basicBlock);
+	}
+	return basicBlocks;
+}
+
+std::vector<Instruction*> getAllInstructions(BasicBlock *basicBlock) {
+	std::vector<Instruction*> bbInstrs;
+	for (auto &instr : basicBlock->instructionsWithoutDebug()) {
+		bbInstrs.push_back(&instr);
+	}
+	return bbInstrs;
+}
+
 PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) {
 	auto &ctx = M.getContext();
 
@@ -28,16 +66,53 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		if (function->isDeclaration()) continue;
 
 		// if (function->getName().compare("main")) continue;  // DEBUG
-
-		// if (i++ > 4) continue;  // DEBUG
+		if (++i > 159) continue;  // DEBUG
 
 		outs() << "function: " << function->getName() << "\n";
 
-		// get all basic blocks
-		std::vector<BasicBlock*> basicBlocks;
-		for (auto &basicBlock : function->getBasicBlockList()) {
-			basicBlocks.push_back(&basicBlock);
+		auto basicBlocks = getAllBasicBlocks(function);
+
+		// handle phi nodes
+		for (auto basicBlock : basicBlocks) {
+			for (auto instr : getAllInstructions(basicBlock)) {
+				// DEBUG
+				// instr->print(outs());
+				// outs() << "\n";
+
+				if (!isa<PHINode>(instr)) continue;
+				auto phi = cast<PHINode>(instr);
+
+				auto globVar = createGlobal(M, phi->getType());
+				for (unsigned i = 0; i < phi->getNumIncomingValues(); i++) {
+					auto val = phi->getIncomingValue(i);
+					if (isa<Instruction>(val)) {
+						auto incomingInstr = cast<Instruction>(val);
+						IRBuilder<> builder(incomingInstr);
+						createLoader(phi, globVar, builder);
+						createStore(incomingInstr, globVar, builder);
+					} else if (isa<Constant>(val)) {
+						globVar->setInitializer(cast<Constant>(val));
+					} else {
+						assert(false);
+					}
+				}
+				assert(phi->isSafeToRemove());
+				phi->eraseFromParent();
+			}
 		}
+
+		// make arguments global
+		auto argBlock = BasicBlock::Create(ctx, "arguments", function, &function->getEntryBlock());
+		IRBuilder<> builder(argBlock);
+		for (auto &arg : function->args()) {
+			auto globVar = createGlobal(M, arg.getType());
+			createLoader(&arg, globVar, builder);
+			builder.SetInsertPoint(argBlock);
+			builder.CreateStore(&arg, globVar);
+		}
+		auto mainBlock = BasicBlock::Create(ctx, "main", function);
+		IRBuilder<> mainBuilder(mainBlock);
+		builder.CreateBr(mainBlock);
 
 		//
 		// make variables global
@@ -46,10 +121,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			IRBuilder<> builder(basicBlock);
 
 			// get all instructions
-			std::vector<Instruction*> bbInstrs;
-			for (auto &instr : basicBlock->instructionsWithoutDebug()) {
-				bbInstrs.push_back(&instr);
-			}
+			auto bbInstrs = getAllInstructions(basicBlock);
 
 			for (auto instr : bbInstrs) {
 				// TODO (optional) check if uses only in this block and continue
@@ -69,6 +141,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 
 				auto globVar = createGlobal(M, type);
 
+				// make global
 				if (isa<AllocaInst>(instr)) {
 					// just replace and remove
 					instr->replaceAllUsesWith(globVar);
@@ -76,23 +149,10 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 					instr->eraseFromParent();
 				} else {
 					// create a loader for every user ...
-					std::vector<User*> users;
-					for (auto user : instr->users()) {
-						users.push_back(user);
-					}
-					for (auto user : users) {
-						builder.SetInsertPoint(cast<Instruction>(user));
-						user->replaceUsesOfWith(instr, builder.CreateLoad(globVar));
-					}
+					createLoader(instr, globVar, builder);
 
 					// and store the return value
-					auto nextNode = instr->getNextNode();
-					if (nextNode) {
-						builder.SetInsertPoint(nextNode);
-					} else {
-						builder.SetInsertPoint(basicBlock);
-					}
-					builder.CreateStore(instr, globVar);
+					createStore(instr, globVar, builder);
 				}
 			}
 
@@ -113,18 +173,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		//
 		// move basic blocks to new function and create call from func
 		//
-		auto mainBlock = BasicBlock::Create(ctx, "main", function);
-		IRBuilder<> mainBuilder(mainBlock);
 		for (auto basicBlock : basicBlocks) {
-			// get affected arguments
-			std::vector<Value*> args;
-			std::vector<Type*> argsTypes;
-			for (auto &arg : function->args()) {
-				if (arg.isUsedInBasicBlock(basicBlock)) {
-					args.push_back(&arg);
-					argsTypes.push_back(arg.getType());
-				}
-			}
 
 			// handle return type
 			auto retType = Type::getVoidTy(ctx);
@@ -137,15 +186,10 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			}
 
 			// create function and move basic block to it
-			auto funcType = FunctionType::get(retType, argsTypes, false);
+			auto funcType = FunctionType::get(retType, false);
 			auto outFunc = Function::Create(funcType, GlobalValue::LinkageTypes::PrivateLinkage, "newFunc", M);
 			auto syncBlock = BasicBlock::Create(ctx, "sync", outFunc);
 			basicBlock->moveAfter(syncBlock);
-
-			// connect the arguments
-			for (unsigned i = 0; i < args.size(); i++) {
-				args[i]->replaceAllUsesWith(outFunc->getArg(i));
-			}
 
 			// TODO: create sync block
 			IRBuilder<> syncBuilder(syncBlock);
@@ -199,8 +243,22 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			}
 			outFunc->print(outs());  // DEBUG
 
-			// create call to function in func (TODO: threads)
-			mainBuilder.CreateCall(outFunc, args);
+			// create call to function in func
+			std::vector<Value*> args;
+			auto thrd = mainBuilder.CreateAlloca(Type::getInt64Ty(ctx));
+			thrd->setAlignment(MaybeAlign(8));
+			args.push_back(thrd);
+			args.push_back(ConstantPointerNull::get(PointerType::get(M.getTypeByName("union.pthread_attr_t"), 0)));
+			auto genericFuncType = PointerType::get(FunctionType::get(Type::getInt8PtrTy(ctx), ArrayRef<Type*>(Type::getInt8PtrTy(ctx)), false), 0);
+			args.push_back(mainBuilder.CreateBitCast(outFunc, genericFuncType));
+			args.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(ctx)));
+			auto pCreate = M.getFunction("pthread_create");
+			auto call = mainBuilder.CreateCall(pCreate, args);
+
+			// check if function returns and handle return
+			// if (!outFunc->getReturnType()->isVoidTy()) {
+			// 	mainBuilder.CreateRet();
+			// }
 		}
 
 		// DEBUG
