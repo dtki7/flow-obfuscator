@@ -16,16 +16,32 @@ GlobalVariable *createGlobal(Module &M, Type *type) {
 
 PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) {
 	auto &ctx = M.getContext();
+
+	// get all functions
+	std::vector<Function*> functions;
 	for (auto &function : M.functions()) {
-		if (function.getName().compare("main")) continue;  // DEBUG
+		functions.push_back(&function);
+	}
+
+	int i = 0;  // DEBUG
+	for (auto function : functions) {
+		if (function->isDeclaration()) continue;
+
+		// if (function->getName().compare("main")) continue;  // DEBUG
+
+		// if (i++ > 4) continue;  // DEBUG
+
+		outs() << "function: " << function->getName() << "\n";
 
 		// get all basic blocks
 		std::vector<BasicBlock*> basicBlocks;
-		for (auto &basicBlock : function.getBasicBlockList()) {
+		for (auto &basicBlock : function->getBasicBlockList()) {
 			basicBlocks.push_back(&basicBlock);
 		}
 
+		//
 		// make variables global
+		//
 		for (auto &basicBlock : basicBlocks) {
 			IRBuilder<> builder(basicBlock);
 
@@ -76,6 +92,8 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 				}
 			}
 
+			outs() << "\n";  // DEBUG
+
 			// delete branch and append ret if necessary
 			auto lastInstr = &*--basicBlock->end();
 			if (isa<BranchInst>(lastInstr)) {
@@ -88,13 +106,26 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			}
 		}
 
-		// move basic blocks to new function
+		//
+		// move basic blocks to new function and create call from func
+		//
 		for (auto basicBlock : basicBlocks) {
 			// create new function with entry basic block and move basic block to it
-			auto funcType = FunctionType::get(Type::getVoidTy(ctx), false);
+			std::vector<Argument*> args;
+			std::vector<Type*> argsTypes;
+			for (auto &arg : function->args()) {
+				if (arg.isUsedInBasicBlock(basicBlock)) {
+					args.push_back(&arg);
+					argsTypes.push_back(arg.getType());
+				}
+			}
+			auto funcType = FunctionType::get(Type::getVoidTy(ctx), argsTypes, false);
 			auto outFunc = Function::Create(funcType, GlobalValue::LinkageTypes::PrivateLinkage, "newFunc", M);
 			auto syncBlock = BasicBlock::Create(ctx, "sync", outFunc);
 			basicBlock->moveAfter(syncBlock);
+			for (unsigned i = 0; i < args.size(); i++) {
+				args[i]->replaceAllUsesWith(outFunc->getArg(i));
+			}
 
 			// TODO: create sync block
 			IRBuilder<> syncBuilder(syncBlock);
@@ -139,7 +170,20 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 				instr->eraseFromParent();
 			}
 			outFunc->print(outs());  // DEBUG
+
+			// TODO: create call to function in func
+			auto mainBlock = BasicBlock::Create(ctx, "caller", function);
+			IRBuilder<> builder(mainBlock);
+			auto retType = function->getReturnType();
+			if (retType->isVoidTy()) {
+				builder.CreateRetVoid();
+			} else {
+				builder.CreateRet(ConstantAggregateZero::get(retType));
+			}
 		}
+		function->print(outs());  // DEBUG
+
+		outs() << "\n\n";  // DEBUG
 	}
     return PreservedAnalyses::all();
 }
