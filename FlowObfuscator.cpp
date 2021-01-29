@@ -38,9 +38,16 @@ void createStore(Instruction *instr, GlobalVariable * globVar, IRBuilder<> &buil
 
 std::vector<BasicBlock*> getAllBasicBlocks(Function *function) {
 	std::vector<BasicBlock*> basicBlocks;
+	std::vector<BasicBlock*> landingBlocks;
 	for (auto &basicBlock : function->getBasicBlockList()) {
-		basicBlocks.push_back(&basicBlock);
+		auto firstInstr = basicBlock.getFirstNonPHI();
+		if (isa<LandingPadInst>(firstInstr)) {
+			landingBlocks.push_back(&basicBlock);
+		} else {
+			basicBlocks.push_back(&basicBlock);
+		}
 	}
+	basicBlocks.insert(basicBlocks.end(), landingBlocks.begin(), landingBlocks.end());
 	return basicBlocks;
 }
 
@@ -87,14 +94,14 @@ void initMutex(Module &M, GlobalVariable *mutex, IRBuilder<> &builder) {
 PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) {
 	auto &ctx = M.getContext();
 
-	auto functions = getAllFunctions(M, true);  // TODO: not only from main
+	auto functions = getAllFunctions(M);  // TODO: not only from main
 
 	int i = 0;  // DEBUG
 	for (auto function : functions) {
 		if (function->isDeclaration()) continue;
 
-		if (function->getName().compare("main")) continue;  // DEBUG
-		// if (++i > 159) continue;  // DEBUG
+		// if (function->getName().compare("main")) continue;  // DEBUG
+		// if (++i > 1600) continue;  // DEBUG
 
 		outs() << "function: " << function->getName() << "\n";
 
@@ -156,17 +163,17 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			auto bbInstrs = getAllInstructions(basicBlock);
 
 			for (auto instr : bbInstrs) {
-				// TODO (optional) check if uses only in this block and continue
-				if (instr->getType() == Type::getVoidTy(ctx))
-					continue;
-
 				// DEBUG
 				outs() << "instr: ";
 				instr->print(outs());
 				outs() << "\n";
 
-				// stack allocations get substituted directly, so we need the contained type
+				// TODO (optional) check if uses only in this block and continue
 				Type *type = instr->getType();
+				if (type->isVoidTy())
+					continue;
+
+				// stack allocations get substituted directly, so we need the contained type
 				if (isa<AllocaInst>(instr)) {
 					type = type->getContainedType(0);
 				}
@@ -204,6 +211,8 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 
 			if (isa<ReturnInst>(lastInstr)) {
 				auto retInstr = cast<ReturnInst>(lastInstr);
+				if (!retInstr->getReturnValue()) continue;
+
 				if (!retMutex) {
 					retMutex = createGlobal(M, M.getTypeByName("union.pthread_mutex_t"));
 					retVal = createGlobal(M, retInstr->getReturnValue()->getType());
@@ -272,22 +281,28 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			// syncBuilder.CreateBr(basicBlock);
 
 			auto instr = &*std::prev(basicBlock->end(), 1);
-			if (isa<ResumeInst>(instr)) {  // handle resume terminator (TODO: test error)
+			if (isa<ResumeInst>(instr)) {  // handle resume terminator (TODO: testing? or exception handling just doesn't work)
 				outFunc->setPersonalityFn(function->getPersonalityFn());
 			} else if (isa<BranchInst>(instr)) {  // handle branch
 				auto branch = cast<BranchInst>(instr);
 				for (unsigned i = 0; i < branch->getNumSuccessors(); i++) {
 					block2sync[basicBlock].at(i)->moveAfter(basicBlock);
-					branch->setSuccessor(0, block2sync[basicBlock].at(i));
+					branch->setSuccessor(i, block2sync[basicBlock].at(i));
 				}
 			}
 
 			// handle invoke terminator
-			instr = &*std::prev(basicBlock->end(), 2);
-			if (isa<StoreInst>(instr)) {  // invoke with return value
-				instr = &*std::prev(basicBlock->end(), 3);
+			instr = &*--basicBlock->end();
+			while (instr) {
+				if (isa<InvokeInst>(instr)) break;
+				instr = instr->getPrevNode();
 			}
-			if(isa<InvokeInst>(instr)) {
+			if(instr && isa<InvokeInst>(instr)) {
+				// DEBUG
+				outs() << "invoke: ";
+				instr->print(outs());
+				outs() << "\n";
+
 				auto invokeInstr = cast<InvokeInst>(instr);
 				auto origLandingPad = invokeInstr->getLandingPadInst();
 
@@ -328,7 +343,6 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 				instr->getNextNode()->eraseFromParent();
 				instr->eraseFromParent();
 			}
-			outFunc->print(outs());  // DEBUG
 
 			// create call to function in func
 			std::vector<Value*> args;
@@ -341,11 +355,15 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			args.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(ctx)));
 			auto pCreate = M.getFunction("pthread_create");
 			auto call = mainBuilder.CreateCall(pCreate, args);
+
+			outFunc->print(outs());  // DEBUG
 		}
 
 		if (retVal) {
 			mainBuilder.CreateCall(M.getFunction("pthread_mutex_lock"), ArrayRef<Value*>(retMutex));
 			mainBuilder.CreateRet(mainBuilder.CreateLoad(retVal));
+		} else {
+			mainBuilder.CreateRetVoid();
 		}
 
 		function->print(outs());  // DEBUG
