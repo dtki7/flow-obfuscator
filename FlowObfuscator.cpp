@@ -68,7 +68,11 @@ std::vector<Function*> getAllFunctions(Module& M, bool onlyFromMain = false) {
 				for (auto instr : getAllInstructions(basicBlock)) {
 					if (isa<CallBase>(instr)) {
 						auto call = cast<CallBase>(instr);
-						tmpFuncs.push_back(call->getCalledFunction());
+						auto function = call->getCalledFunction();
+						if (!function || function->isDeclaration()
+								|| std::find(functions.begin(), functions.end(), function) != functions.end()
+								|| std::find(tmpFuncs.begin(), tmpFuncs.end(), function) != tmpFuncs.end()) continue;
+						tmpFuncs.push_back(function);
 					}
 				}
 			}
@@ -77,6 +81,7 @@ std::vector<Function*> getAllFunctions(Module& M, bool onlyFromMain = false) {
 		}
 	} else {
 		for (auto &function : M.functions()) {
+			if (function.isDeclaration()) continue;
 			functions.push_back(&function);
 		}
 	}
@@ -94,13 +99,11 @@ void initMutex(Module &M, GlobalVariable *mutex, IRBuilder<> &builder) {
 PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) {
 	auto &ctx = M.getContext();
 
-	auto functions = getAllFunctions(M);  // TODO: not only from main
+	auto functions = getAllFunctions(M, true);  // TODO: not only from main
 
 	int i = 0;  // DEBUG
 	for (auto function : functions) {
-		if (function->isDeclaration()) continue;
-
-		// if (function->getName().compare("main")) continue;  // DEBUG
+		if (function->getName().compare("main")) continue;  // DEBUG
 		// if (++i > 1600) continue;  // DEBUG
 
 		outs() << "function: " << function->getName() << "\n";
@@ -168,14 +171,31 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 				instr->print(outs());
 				outs() << "\n";
 
-				// TODO (optional) check if uses only in this block and continue
 				Type *type = instr->getType();
 				if (type->isVoidTy())
 					continue;
 
+				// check if uses only in this block and continue
+				bool handle = false;
+				for (auto it = ++std::find(basicBlocks.begin(), basicBlocks.end(), basicBlock);
+						it != basicBlocks.end(); it++) {
+					if (instr->isUsedInBasicBlock(*it)) {
+						handle = true;
+						break;
+					}
+				}
+
 				// stack allocations get substituted directly, so we need the contained type
 				if (isa<AllocaInst>(instr)) {
 					type = type->getContainedType(0);
+					handle = true;
+				} else if (isa<LandingPadInst>(instr)) {
+					handle = true;
+				}
+
+				if (!handle) {
+					outs() << "skipping\n";  // DEBUG
+					continue;
 				}
 
 				auto globVar = createGlobal(M, type);
@@ -267,7 +287,9 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		//
 		// move basic blocks to new function and create call from func
 		//
+		int i = 0;
 		for (auto basicBlock : basicBlocks) {
+			// if (++i > 18) continue;  // DEBUG
 
 			// create function and move basic block to it
 			auto funcType = FunctionType::get(Type::getVoidTy(ctx), false);
@@ -281,7 +303,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			// syncBuilder.CreateBr(basicBlock);
 
 			auto instr = &*std::prev(basicBlock->end(), 1);
-			if (isa<ResumeInst>(instr)) {  // handle resume terminator (TODO: testing? or exception handling just doesn't work)
+			if (isa<ResumeInst>(instr)) {  // handle resume terminator (TODO (optional): exception handling doesn't work)
 				outFunc->setPersonalityFn(function->getPersonalityFn());
 			} else if (isa<BranchInst>(instr)) {  // handle branch
 				auto branch = cast<BranchInst>(instr);
@@ -299,9 +321,9 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			}
 			if(instr && isa<InvokeInst>(instr)) {
 				// DEBUG
-				outs() << "invoke: ";
-				instr->print(outs());
-				outs() << "\n";
+				// outs() << "invoke: ";
+				// instr->print(outs());
+				// outs() << "\n";
 
 				auto invokeInstr = cast<InvokeInst>(instr);
 				auto origLandingPad = invokeInstr->getLandingPadInst();

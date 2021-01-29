@@ -1,3 +1,10 @@
 std::thread with a lot of handling (error, id, ...)
 clang++-10 -include pthread.h -femit-all-decls -emit-llvm -c example.cp
 gegenmaßnahmen
+
+
+normal:
+**** PI Computation ( digit: 10000000 )
+FRACTION  : 1.092519306564063
+HEX DIGITS: 17AF5863F0
+( TIME: 37.1739 seconds )
