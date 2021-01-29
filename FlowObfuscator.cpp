@@ -52,21 +52,41 @@ std::vector<Instruction*> getAllInstructions(BasicBlock *basicBlock) {
 	return bbInstrs;
 }
 
+std::vector<Function*> getAllFunctions(Module& M, bool onlyFromMain = true) {
+	std::vector<Function*> functions;
+	if (onlyFromMain) {
+		std::vector<Function*> tmpFuncs({M.getFunction("main")});
+		while (!tmpFuncs.empty()) {
+			for (auto basicBlock : getAllBasicBlocks(tmpFuncs.front())) {
+				for (auto instr : getAllInstructions(basicBlock)) {
+					if (isa<CallBase>(instr)) {
+						auto call = cast<CallBase>(instr);
+						tmpFuncs.push_back(call->getCalledFunction());
+					}
+				}
+			}
+			functions.push_back(tmpFuncs.front());
+			tmpFuncs.erase(tmpFuncs.begin());
+		}
+	} else {
+		for (auto &function : M.functions()) {
+			functions.push_back(&function);
+		}
+	}
+	return functions;
+}
+
 PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) {
 	auto &ctx = M.getContext();
 
-	// get all functions
-	std::vector<Function*> functions;
-	for (auto &function : M.functions()) {
-		functions.push_back(&function);
-	}
+	auto functions = getAllFunctions(M);
 
 	int i = 0;  // DEBUG
 	for (auto function : functions) {
 		if (function->isDeclaration()) continue;
 
 		// if (function->getName().compare("main")) continue;  // DEBUG
-		if (++i > 159) continue;  // DEBUG
+		// if (++i > 159) continue;  // DEBUG
 
 		outs() << "function: " << function->getName() << "\n";
 
