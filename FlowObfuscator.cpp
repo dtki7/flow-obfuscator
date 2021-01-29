@@ -76,6 +76,14 @@ std::vector<Function*> getAllFunctions(Module& M, bool onlyFromMain = false) {
 	return functions;
 }
 
+void initMutex(Module &M, GlobalVariable *mutex, IRBuilder<> &builder) {
+	std::vector<Value*> args;
+	args.push_back(mutex);
+	args.push_back(ConstantPointerNull::get(PointerType::get(M.getTypeByName("union.pthread_mutexattr_t"), 0)));
+	builder.CreateCall(M.getFunction("pthread_mutex_init"), args);
+	builder.CreateCall(M.getFunction("pthread_mutex_lock"), ArrayRef<Value*>(mutex));
+}
+
 PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) {
 	auto &ctx = M.getContext();
 
@@ -215,11 +223,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 
 		// create call to pthread_mutex_init and pthread_mutex_lock
 		if (retMutex) {
-			std::vector<Value*> args;
-			args.push_back(retMutex);
-			args.push_back(ConstantPointerNull::get(PointerType::get(M.getTypeByName("union.pthread_mutexattr_t"), 0)));
-			mainBuilder.CreateCall(M.getFunction("pthread_mutex_init"), args);
-			mainBuilder.CreateCall(M.getFunction("pthread_mutex_lock"), ArrayRef<Value*>(retMutex));
+			initMutex(M, retMutex, mainBuilder);
 		}
 
 		// handle synchronization
@@ -227,6 +231,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		for (auto basicBlock : basicBlocks) {
 			if (basicBlock->hasNPredecessorsOrMore(1)) {
 				auto mutex = createGlobal(M, M.getTypeByName("union.pthread_mutex_t"));
+				initMutex(M, mutex, mainBuilder);
 
 				auto firstInstr = basicBlock->getFirstNonPHI();
 				if (isa<LandingPadInst>(firstInstr)) {
@@ -239,8 +244,8 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 					auto syncBlock = BasicBlock::Create(ctx, "sync", function);
 					generalBuilder.SetInsertPoint(syncBlock);
 					generalBuilder.CreateCall(M.getFunction("pthread_mutex_unlock"), ArrayRef<Value*>(mutex));
+					generalBuilder.CreateRetVoid();
 					block2sync[pred].push_back(syncBlock);
-					// return?
 				}
 			}
 		}
@@ -305,6 +310,12 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 				invokeInstr->setNormalDest(normalDest);
 				invokeInstr->setUnwindDest(landingPadBlock);
 
+				// add the sync instrs to the dests
+				block2sync[basicBlock].at(0)->getFirstNonPHI()->moveBefore(&*--normalDest->end());
+				block2sync[basicBlock].at(1)->getFirstNonPHI()->moveBefore(&*--landingPadBlock->end());
+				block2sync[basicBlock].at(0)->eraseFromParent();
+				block2sync[basicBlock].at(1)->eraseFromParent();
+
 				// move personality function for landing pad
 				outFunc->setPersonalityFn(function->getPersonalityFn());
 			}
@@ -333,6 +344,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		}
 
 		if (retVal) {
+			mainBuilder.CreateCall(M.getFunction("pthread_mutex_lock"), ArrayRef<Value*>(retMutex));
 			mainBuilder.CreateRet(mainBuilder.CreateLoad(retVal));
 		}
 
