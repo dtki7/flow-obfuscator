@@ -104,7 +104,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 	int i = 0;  // DEBUG
 	for (auto function : functions) {
 		// if (function->getName().compare("main")) continue;  // DEBUG
-		if (++i > 4) continue;  // DEBUG
+		if (++i > 5) continue;  // DEBUG
 
 		outs() << "function: " << function->getName() << "\n";
 
@@ -272,12 +272,25 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 				generalBuilder.SetInsertPoint(firstInstr);
 				generalBuilder.CreateCall(M.getFunction("pthread_mutex_lock"), ArrayRef<Value*>(mutex));
 
+
+				std::vector<BasicBlock*> preds;
 				for (auto pred : predecessors(basicBlock)) {
+					preds.push_back(pred);
+				}
+				for (auto pred : preds) {
+					// create sync block
 					auto syncBlock = BasicBlock::Create(ctx, "sync", function);
 					generalBuilder.SetInsertPoint(syncBlock);
 					generalBuilder.CreateCall(M.getFunction("pthread_mutex_unlock"), ArrayRef<Value*>(mutex));
 					generalBuilder.CreateRetVoid();
 					block2sync[pred].push_back(syncBlock);
+
+					// set branch instr
+					auto lastInstr = &*--pred->end();
+					if (isa<BranchInst>(lastInstr)) {
+						auto brInstr = cast<BranchInst>(lastInstr);
+						brInstr->replaceSuccessorWith(basicBlock, syncBlock);
+					}
 				}
 			}
 		}
@@ -311,8 +324,9 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			} else if (isa<BranchInst>(instr)) {  // handle branch
 				auto branch = cast<BranchInst>(instr);
 				for (unsigned i = 0; i < branch->getNumSuccessors(); i++) {
-					block2sync[basicBlock].at(i)->moveAfter(basicBlock);
-					branch->setSuccessor(i, block2sync[basicBlock].at(i));
+					branch->getSuccessor(i)->moveAfter(basicBlock);
+					// block2sync[basicBlock].at(i)->moveAfter(basicBlock);
+					// branch->setSuccessor(i, block2sync[basicBlock].at(i));
 				}
 			}
 
