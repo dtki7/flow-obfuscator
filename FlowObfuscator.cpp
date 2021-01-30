@@ -103,8 +103,8 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 
 	int i = 0;  // DEBUG
 	for (auto function : functions) {
-		if (function->getName().compare("main")) continue;  // DEBUG
-		// if (++i > 1600) continue;  // DEBUG
+		// if (function->getName().compare("main")) continue;  // DEBUG
+		if (++i > 4) continue;  // DEBUG
 
 		outs() << "function: " << function->getName() << "\n";
 
@@ -231,16 +231,19 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 
 			if (isa<ReturnInst>(lastInstr)) {
 				auto retInstr = cast<ReturnInst>(lastInstr);
-				if (!retInstr->getReturnValue()) continue;
 
 				if (!retMutex) {
 					retMutex = createGlobal(M, M.getTypeByName("union.pthread_mutex_t"));
-					retVal = createGlobal(M, retInstr->getReturnValue()->getType());
 				}
 
 				// substitute return instr with store instr
-				builder.SetInsertPoint(lastInstr);
-				builder.CreateStore(retInstr->getReturnValue(), retVal);
+				if (retInstr->getReturnValue()) {
+					if (!retVal) {
+						retVal = createGlobal(M, retInstr->getReturnValue()->getType());
+					}
+					builder.SetInsertPoint(lastInstr);
+					builder.CreateStore(retInstr->getReturnValue(), retVal);
+				}
 
 				// create mutex and call to pthread_mutex_unlock
 				builder.CreateCall(M.getFunction("pthread_mutex_unlock"), ArrayRef<Value*>(retMutex));
@@ -381,8 +384,10 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			outFunc->print(outs());  // DEBUG
 		}
 
-		if (retVal) {
+		if (retMutex) {
 			mainBuilder.CreateCall(M.getFunction("pthread_mutex_lock"), ArrayRef<Value*>(retMutex));
+		}
+		if (retVal) {
 			mainBuilder.CreateRet(mainBuilder.CreateLoad(retVal));
 		} else {
 			mainBuilder.CreateRetVoid();
