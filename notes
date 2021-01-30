@@ -2,9 +2,24 @@ std::thread with a lot of handling (error, id, ...)
 clang++-10 -include pthread.h -femit-all-decls -emit-llvm -c example.cp
 gegenmaßnahmen
 split not only basic blocks but also more than n instructions
+find hot spots
 
 normal:
 **** PI Computation ( digit: 10000000 )
 FRACTION  : 1.092519306564063
 HEX DIGITS: 17AF5863F0
 ( TIME: 37.1739 seconds )
+**** PI Computation ( digit: 10000 )
+FRACTION  : 0.408883083546254
+HEX DIGITS: 68AC8FCFB8
+( TIME: 0.02568 seconds )
+**** PI Computation ( digit: 1000 )
+FRACTION  : 1.205552818646943
+HEX DIGITS: 349F1C09B0
+( TIME: 0.002423 seconds )
+
+obfuscated:
+**** PI Computation ( digit: 1000 )
+FRACTION  : 1.205552818646943
+HEX DIGITS: 349F1C09B0
+( TIME: 0.769364 seconds )
