@@ -115,10 +115,13 @@ bool checkIfLoop(BasicBlock* pred, BasicBlock* start = nullptr, unsigned n = 0) 
 	return false;
 }
 
-void createThread(Module& M, Function* callee, IRBuilder<> &builder) {
+Value *createThread(Module& M, Function* callee, IRBuilder<> &builder, Value *thrd = nullptr) {
 	std::vector<Value*> args;
-	auto thrd = builder.CreateAlloca(Type::getInt64Ty(M.getContext()));
-	thrd->setAlignment(MaybeAlign(8));
+	//auto thrd = builder.CreateAlloca(Type::getInt64Ty(M.getContext()));
+	// thrd->setAlignment(MaybeAlign(8));
+	if (!thrd) {
+		thrd = createGlobal(M, Type::getInt64Ty(M.getContext()));
+	}
 	args.push_back(thrd);
 	args.push_back(ConstantPointerNull::get(PointerType::get(M.getTypeByName("union.pthread_attr_t"), 0)));
 	auto genericFuncType = PointerType::get(FunctionType::get(Type::getInt8PtrTy(M.getContext()), ArrayRef<Type*>(Type::getInt8PtrTy(M.getContext())), false), 0);
@@ -126,10 +129,15 @@ void createThread(Module& M, Function* callee, IRBuilder<> &builder) {
 	args.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(M.getContext())));
 	auto pCreate = M.getFunction("pthread_create");
 	auto call = builder.CreateCall(pCreate, args);
+	return thrd;
 }
 
 PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) {
 	auto &ctx = M.getContext();
+
+	// create pthread_cancel function
+	auto funcType = FunctionType::get(Type::getInt32Ty(ctx), ArrayRef<Type*>(Type::getInt64Ty(ctx)), false);
+	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "pthread_cancel", M);
 
 	auto functions = getAllFunctions(M, true);  // TODO: not only from main
 
@@ -293,10 +301,12 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 
 		// handle synchronization
 		std::map<BasicBlock*, std::vector<BasicBlock*>> block2sync;
+		std::vector<Value*> mutexes;
 		for (auto basicBlock : basicBlocks) {
 			if (basicBlock->hasNPredecessorsOrMore(1)) {
 				auto mutex = createGlobal(M, M.getTypeByName("union.pthread_mutex_t"));
 				initMutex(M, mutex, mainBuilder);
+				mutexes.push_back(mutex);
 
 				// create call to mutex lock
 				auto firstInstr = basicBlock->getFirstNonPHI();
@@ -304,6 +314,10 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 					firstInstr = firstInstr->getNextNode()->getNextNode();
 				}
 				generalBuilder.SetInsertPoint(firstInstr);
+				std::vector<Value*> args;
+				args.push_back(ConstantInt::get(Type::getInt32Ty(ctx), 1));
+				args.push_back(ConstantPointerNull::get(Type::getInt32PtrTy(ctx)));
+				generalBuilder.CreateCall(M.getFunction("pthread_setcanceltype"), args);
 				generalBuilder.CreateCall(M.getFunction("pthread_mutex_lock"), ArrayRef<Value*>(mutex));
 
 				// handle preds
@@ -340,6 +354,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		// move basic blocks to new function and create call from func
 		//
 		int i = 0;
+		std::vector<Value*> thrds;
 		for (auto basicBlock : basicBlocks) {
 			// if (++i > 18) continue;  // DEBUG
 
@@ -420,14 +435,18 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			}
 
 			// create call to function in func
-			createThread(M, outFunc, mainBuilder);
+			auto thrd = createThread(M, outFunc, mainBuilder);
 
-			// restart itself when in loop
+			// handle loop
 			if (std::find(loop.begin(), loop.end(), basicBlock) != loop.end()) {
+				// restart itself when in loop
 				generalBuilder.SetInsertPoint(&*--basicBlock->end());
 				auto mutex = cast<CallInst>(basicBlock->getFirstNonPHI())->getArgOperand(0);
 				// generalBuilder.CreateCall(M.getFunction("pthread_mutex_lock"), ArrayRef<Value*>(mutex));
-				createThread(M, outFunc, generalBuilder);
+				createThread(M, outFunc, generalBuilder, thrd);
+
+				// add to thrds to cancel later
+				thrds.push_back(thrd);
 			}
 
 			outFunc->print(outs());  // DEBUG
@@ -435,6 +454,19 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 
 		if (retMutex) {
 			mainBuilder.CreateCall(M.getFunction("pthread_mutex_lock"), ArrayRef<Value*>(retMutex));
+		}
+		for (auto thrd : thrds) {
+			auto loadedThrd = mainBuilder.CreateLoad(thrd);
+			mainBuilder.CreateCall(M.getFunction("pthread_cancel"), ArrayRef<Value*>(loadedThrd));
+			std::vector<Value*> args;
+			args.push_back(loadedThrd);
+			args.push_back(ConstantPointerNull::get(PointerType::get(Type::getInt8PtrTy(ctx), 0)));
+			mainBuilder.CreateCall(M.getFunction("pthread_join"), args);
+
+		}
+		for (auto mutex : mutexes) {
+			// mainBuilder.CreateCall(M.getFunction("pthread_mutex_unlock"), ArrayRef<Value*>(mutex));
+			mainBuilder.CreateCall(M.getFunction("pthread_mutex_destroy"), ArrayRef<Value*>(mutex));
 		}
 		if (retVal) {
 			mainBuilder.CreateRet(mainBuilder.CreateLoad(retVal));
