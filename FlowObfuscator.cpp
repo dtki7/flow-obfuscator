@@ -135,6 +135,20 @@ Value *createThread(Module& M, Function* callee, IRBuilder<> &builder, Value *th
 	return thrd;
 }
 
+bool checkRecursive(Function *function) {
+	for (auto basicBlock : getAllBasicBlocks(function)) {
+		for (auto instr : getAllInstructions(basicBlock)) {
+			if (isa<CallBase>(instr)) {
+				auto call = cast<CallBase>(instr);
+				if (call->getCalledFunction() == function) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
 PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) {
 	auto &ctx = M.getContext();
 
@@ -166,10 +180,15 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 
 	int i = 0;  // DEBUG
 	for (auto function : functions) {
-		// if (function->getName().compare("main")) continue;  // DEBUG
-		if (++i > 6) continue;  // DEBUG
+		// if (function->getName().compare("_ZN3Bbp10compModExpEiii")) continue;  // DEBUG
+		// if (++i > 20) continue;  // DEBUG
 
 		outs() << "function: " << function->getName() << "\n";
+
+		if (checkRecursive(function)) {
+			errs() << "warning: recursive functions not supported, skipping...\n";
+			continue;
+		}
 
 		IRBuilder<> generalBuilder(ctx);
 		auto basicBlocks = getAllBasicBlocks(function);

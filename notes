@@ -5,12 +5,30 @@ split not only basic blocks but also more than n instructions
 find hot spots
 test spin
 threads limit
+problem detached zombies
 
 normal:
 **** PI Computation ( digit: 10000000 )
 FRACTION  : 1.092519306564063
 HEX DIGITS: 17AF5863F0
 ( TIME: 37.1739 seconds )
+real	0m37,787s
+user	0m37,663s
+sys	0m0,012s
+**** PI Computation ( digit: 1000000 )
+FRACTION  : 1.151464362347900
+HEX DIGITS: 26C65E52CB
+( TIME: 3.20313 seconds )
+real	0m3,235s
+user	0m3,196s
+sys	0m0,012s
+**** PI Computation ( digit: 100000 )
+FRACTION  : 1.325662697723974
+HEX DIGITS: 535EA16C40
+( TIME: 0.300982 seconds )
+real	0m0,304s
+user	0m0,303s
+sys	0m0,000s
 **** PI Computation ( digit: 10000 )
 FRACTION  : 0.408883083546254
 HEX DIGITS: 68AC8FCFB8
@@ -21,7 +39,3 @@ HEX DIGITS: 349F1C09B0
 ( TIME: 0.002423 seconds )
 
 obfuscated:
-**** PI Computation ( digit: 1000 )
-FRACTION  : 1.205552818646943
-HEX DIGITS: 349F1C09B0
-( TIME: 0.769364 seconds )
