@@ -8,34 +8,68 @@
 
 using namespace llvm;
 
-GlobalVariable *createGlobal(Module &M, Type *type) {
-	auto globVar = new GlobalVariable(M, type, false, GlobalValue::LinkageTypes::PrivateLinkage, nullptr);
-	globVar->setInitializer(ConstantAggregateZero::get(globVar->getType()->getContainedType(0)));
-	return globVar;
+// forward delcarations - TODO (optional): create class in header
+std::vector<Instruction*> getAllInstructions(BasicBlock *basicBlock);
+std::vector<BasicBlock*> getAllBasicBlocks(Function *function);
+
+// global, because repeatedly used
+std::vector<Value*> args;  // function arguments
+std::vector<Type*> types;  // function types
+Value *zero;  // ConstantInt 0
+
+template<class T>
+bool contains(std::vector<T> v, T o) {
+	return std::find(v.begin(), v.end(), o) != v.end();
 }
 
-void createLoader(Value* val, GlobalVariable *globVar, IRBuilder<> &builder) {
-	std::vector<User*> users;
-	for (auto user : val->users()) {
-		users.push_back(user);
+// check if basic block is in a loop
+bool checkIfLoop(BasicBlock* block, BasicBlock* start = nullptr, int n = 30) {
+	if (--n < 0) return false;  // depth
+	if (start == block) return true;
+	if (!start) start = block;
+
+	std::vector<BasicBlock*> preds;
+	for (auto p : predecessors(block)) {
+		preds.push_back(p);
 	}
-	for (auto user : users) {
-		builder.SetInsertPoint(cast<Instruction>(user));
-		user->replaceUsesOfWith(val, builder.CreateLoad(globVar));
+	for (auto p : preds) {
+		if (checkIfLoop(p, start, n)) {
+			return true;
+		}
 	}
+	return false;
 }
 
-void createStore(Instruction *instr, GlobalVariable * globVar, IRBuilder<> &builder) {
-	auto nextNode = instr->getNextNode();
-	if (nextNode) {
-		builder.SetInsertPoint(nextNode);
-	} else {
-		builder.SetInsertPoint(instr);
-		builder.SetInsertPoint(builder.GetInsertBlock());
+// check if the method works reursively, because this won't work with this
+// obfuscation
+bool checkRecursive(Function *function, Function *start = nullptr, int n = 30) {
+	if (--n < 0) return false; // depth
+	if (start == nullptr) start = function;
+
+	for (auto basicBlock : getAllBasicBlocks(function)) {
+		for (auto instr : getAllInstructions(basicBlock)) {
+			if (!isa<CallBase>(instr)) continue;
+			auto call = cast<CallBase>(instr);
+
+			auto f = call->getCalledFunction();
+			if (f == start) return true;
+			if (f && checkRecursive(f, start, n)) return true;
+		}
 	}
-	builder.CreateStore(instr, globVar);
+	return false;
 }
 
+// get all instructions in a basic block
+std::vector<Instruction*> getAllInstructions(BasicBlock *basicBlock) {
+	std::vector<Instruction*> instrs;
+	for (auto &instr : basicBlock->instructionsWithoutDebug()) {
+		instrs.push_back(&instr);
+	}
+	return instrs;
+}
+
+// get all basic blocks of a function. landing pad blocks will be placed at the end,
+// because they normal basic blocks need access to them during the transformation
 std::vector<BasicBlock*> getAllBasicBlocks(Function *function) {
 	std::vector<BasicBlock*> basicBlocks;
 	std::vector<BasicBlock*> landingBlocks;
@@ -51,34 +85,34 @@ std::vector<BasicBlock*> getAllBasicBlocks(Function *function) {
 	return basicBlocks;
 }
 
-std::vector<Instruction*> getAllInstructions(BasicBlock *basicBlock) {
-	std::vector<Instruction*> bbInstrs;
-	for (auto &instr : basicBlock->instructionsWithoutDebug()) {
-		bbInstrs.push_back(&instr);
-	}
-	return bbInstrs;
-}
-
+// get all defined functions in the module. onlyFromMain will return only functions in
+// the calling tree of the main function (not applicable to dlls)
 std::vector<Function*> getAllFunctions(Module& M, bool onlyFromMain = false) {
 	std::vector<Function*> functions;
 	if (onlyFromMain) {
 		std::vector<Function*> tmpFuncs({M.getFunction("main")});
+
 		while (!tmpFuncs.empty()) {
 			for (auto basicBlock : getAllBasicBlocks(tmpFuncs.front())) {
 				for (auto instr : getAllInstructions(basicBlock)) {
-					if (isa<CallBase>(instr)) {
-						auto call = cast<CallBase>(instr);
-						auto function = call->getCalledFunction();
-						if (!function || function->isDeclaration()
-								|| std::find(functions.begin(), functions.end(), function) != functions.end()
-								|| std::find(tmpFuncs.begin(), tmpFuncs.end(), function) != tmpFuncs.end()) continue;
-						tmpFuncs.push_back(function);
-					}
+					if (!isa<CallBase>(instr)) continue;
+					auto call = cast<CallBase>(instr);
+
+					auto function = call->getCalledFunction();
+					if (!function
+							|| function->isDeclaration()
+							|| contains(functions, function)
+							|| contains(tmpFuncs, function))
+						continue;
+
+					tmpFuncs.push_back(function);
 				}
 			}
+
 			functions.push_back(tmpFuncs.front());
 			tmpFuncs.erase(tmpFuncs.begin());
 		}
+
 	} else {
 		for (auto &function : M.functions()) {
 			if (function.isDeclaration()) continue;
@@ -88,34 +122,44 @@ std::vector<Function*> getAllFunctions(Module& M, bool onlyFromMain = false) {
 	return functions;
 }
 
-void initMutex(Module &M, GlobalVariable *mutex, IRBuilder<> &builder) {
-	std::vector<Value*> args;
-	args.push_back(mutex);
-	args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), 0));
-	args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), 0));
-	// args.push_back(ConstantPointerNull::get(PointerType::get(M.getTypeByName("union.pthread_mutexattr_t"), 0)));
-	// builder.CreateCall(M.getFunction("pthread_mutex_init"), args);
-	builder.CreateCall(M.getFunction("sem_init"), args);
-	// builder.CreateCall(M.getFunction("pthread_mutex_lock"), ArrayRef<Value*>(mutex));
+// create generic global for internal use
+GlobalVariable *createGlobal(Module &M, Type *type) {
+	auto globVar = new GlobalVariable(M, type, false, GlobalValue::PrivateLinkage, nullptr);
+	globVar->setInitializer(ConstantAggregateZero::get(globVar->getType()->getContainedType(0)));
+	return globVar;
 }
 
-bool checkIfLoop(BasicBlock* pred, BasicBlock* start = nullptr, unsigned n = 0) {
-	if (++n > 30) return false;
-	if (!pred) return false;
-	if (start == pred) return true;
-	if (!start) start = pred;
-	std::vector<BasicBlock*> preds;
-	for (auto p : predecessors(pred)) {
-		preds.push_back(p);
+// replace the uses of the substituted value with the loaded value of the global
+void createLoader(Value* val, GlobalVariable *globVar, IRBuilder<> &builder) {
+	std::vector<User*> users;
+	for (auto user : val->users()) {
+		users.push_back(user);
 	}
-	preds.push_back(nullptr);
+	for (auto user : users) {
+		builder.SetInsertPoint(cast<Instruction>(user));
+		user->replaceUsesOfWith(val, builder.CreateLoad(globVar));
+	}
+}
 
-	for (auto p : preds) {
-		if (checkIfLoop(p, start, n)) {
-			return true;
-		}
+// store the result in the global for usage in another thread
+void createStore(Instruction *instr, GlobalVariable * globVar, IRBuilder<> &builder) {
+	auto nextNode = instr->getNextNode();
+	if (nextNode) {
+		builder.SetInsertPoint(nextNode);
+	} else {
+		builder.SetInsertPoint(instr);
+		builder.SetInsertPoint(builder.GetInsertBlock());
 	}
-	return false;
+	builder.CreateStore(instr, globVar);
+}
+
+// initiale semaphore
+void initSem(Module &M, GlobalVariable *sem, IRBuilder<> &builder) {
+	args.clear();
+	args.push_back(sem);  // semaphore
+	args.push_back(zero);  // pshared
+	args.push_back(zero);  // initial value
+	builder.CreateCall(M.getFunction("sem_init"), args);
 }
 
 Value *createThread(Module& M, Function* callee, IRBuilder<> &builder, Value *thrd = nullptr) {
@@ -125,6 +169,7 @@ Value *createThread(Module& M, Function* callee, IRBuilder<> &builder, Value *th
 	if (!thrd) {
 		thrd = createGlobal(M, Type::getInt64Ty(M.getContext()));
 	}
+	args.clear();
 	args.push_back(thrd);
 	args.push_back(ConstantPointerNull::get(PointerType::get(M.getTypeByName("union.pthread_attr_t"), 0)));
 	auto genericFuncType = PointerType::get(FunctionType::get(Type::getInt8PtrTy(M.getContext()), ArrayRef<Type*>(Type::getInt8PtrTy(M.getContext())), false), 0);
@@ -135,25 +180,17 @@ Value *createThread(Module& M, Function* callee, IRBuilder<> &builder, Value *th
 	return thrd;
 }
 
-bool checkRecursive(Function *function) {
-	for (auto basicBlock : getAllBasicBlocks(function)) {
-		for (auto instr : getAllInstructions(basicBlock)) {
-			if (isa<CallBase>(instr)) {
-				auto call = cast<CallBase>(instr);
-				if (call->getCalledFunction() == function) {
-					return true;
-				}
-			}
-		}
-	}
-	return false;
-}
+
+// ############################################################################
 
 PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) {
 	auto &ctx = M.getContext();
 
+	// set globals
+	zero = ConstantInt::get(Type::getInt32Ty(M.getContext()), 0);
+
 	// create assets
-	std::vector<Type*> types;
+	types.clear();
 	types.push_back(Type::getInt64Ty(ctx));
 	types.push_back(ArrayType::get(Type::getInt8Ty(ctx), 24));
 	StructType::create(ctx, types, "union.sem_t");
@@ -338,7 +375,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 
 		// create call to pthread_mutex_init and pthread_mutex_lock
 		if (retMutex) {
-			initMutex(M, retMutex, mainBuilder);
+			initSem(M, retMutex, mainBuilder);
 		}
 
 		// handle synchronization
@@ -347,7 +384,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		for (auto basicBlock : basicBlocks) {
 			if (basicBlock->hasNPredecessorsOrMore(1)) {
 				auto mutex = createGlobal(M, M.getTypeByName("union.sem_t"));
-				initMutex(M, mutex, mainBuilder);
+				initSem(M, mutex, mainBuilder);
 				mutexes.push_back(mutex);
 
 				// create call to mutex lock
@@ -356,7 +393,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 					firstInstr = firstInstr->getNextNode()->getNextNode();
 				}
 				generalBuilder.SetInsertPoint(firstInstr);
-				std::vector<Value*> args;
+				args.clear();
 				args.push_back(ConstantInt::get(Type::getInt32Ty(ctx), 1));
 				args.push_back(ConstantPointerNull::get(Type::getInt32PtrTy(ctx)));
 				// generalBuilder.CreateCall(M.getFunction("pthread_setcanceltype"), args);
@@ -402,7 +439,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 
 			// create function and move basic block to it
 			auto funcType = FunctionType::get(Type::getVoidTy(ctx), false);
-			auto outFunc = Function::Create(funcType, GlobalValue::LinkageTypes::PrivateLinkage, "newFunc", M);
+			auto outFunc = Function::Create(funcType, GlobalValue::PrivateLinkage, "newFunc", M);
 			auto tmpBlock = BasicBlock::Create(ctx, "", outFunc);
 			basicBlock->moveAfter(tmpBlock);
 			tmpBlock->eraseFromParent();
@@ -498,7 +535,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		for (auto thrd : thrds) {
 			auto loadedThrd = mainBuilder.CreateLoad(thrd);
 			// mainBuilder.CreateCall(M.getFunction("pthread_cancel"), ArrayRef<Value*>(loadedThrd));
-			std::vector<Value*> args;
+			args.clear();
 			args.push_back(loadedThrd);
 			args.push_back(ConstantPointerNull::get(PointerType::get(Type::getInt8PtrTy(ctx), 0)));
 			// mainBuilder.CreateCall(M.getFunction("pthread_join"), args);
