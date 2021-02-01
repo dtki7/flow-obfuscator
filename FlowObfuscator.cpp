@@ -4,6 +4,7 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 
+#include <set>
 #include <vector>
 
 using namespace llvm;
@@ -237,6 +238,18 @@ void createEnvironment(Module &M) {
 	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "sem_destroy", M)->setDSOLocal(true);
 }
 
+// return a set of all basic blocks that are in a loop, because they need
+// to be restarted after execution
+std::set<BasicBlock*> getLoopBlocks(std::vector<BasicBlock*> basicBlocks) {
+	std::set<BasicBlock*> blocks;
+	for (auto basicBlock : basicBlocks) {
+		if (checkIfLoop(basicBlock)) {
+			blocks.insert(basicBlock);
+		}
+	}
+	return blocks;
+}
+
 // create basic block to store arguments and substitute use of arguments with loaders
 BasicBlock *handleArguments(Module &M, Function *function, IRBuilder<> &builder) {
 	auto argBlock = BasicBlock::Create(M.getContext(), "args", function, &function->getEntryBlock());
@@ -306,6 +319,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		}
 
 		auto basicBlocks = getAllBasicBlocks(function);
+		auto loopBlocks = getLoopBlocks(basicBlocks);  // necessary before manipulation
 
 		auto argBlock = handleArguments(M, function, builder);
 		handlePHINodes(M, basicBlocks, builder);
@@ -322,13 +336,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		//
 		GlobalVariable *retMutex = nullptr;
 		GlobalVariable *retVal = nullptr;
-		std::vector<BasicBlock*> loop;
 		for (auto basicBlock : basicBlocks) {
-			// needed later
-			if (checkIfLoop(basicBlock)) {
-				loop.push_back(basicBlock);
-			}
-
 			IRBuilder<> builder(basicBlock);
 
 			// get all instructions
@@ -563,7 +571,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			thrds.push_back(thrd);
 
 			// handle loop
-			if (std::find(loop.begin(), loop.end(), basicBlock) != loop.end()) {
+			if (loopBlocks.find(basicBlock) != loopBlocks.end()) {
 				// restart itself when in loop
 				builder.SetInsertPoint(&*--basicBlock->end());
 				auto mutex = cast<CallInst>(basicBlock->getFirstNonPHI())->getArgOperand(0);
