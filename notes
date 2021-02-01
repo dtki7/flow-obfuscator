@@ -3,6 +3,8 @@ clang++-10 -include pthread.h -femit-all-decls -emit-llvm -c example.cp
 gegenmaßnahmen
 split not only basic blocks but also more than n instructions
 find hot spots
+test spin
+threads limit
 
 normal:
 **** PI Computation ( digit: 10000000 )

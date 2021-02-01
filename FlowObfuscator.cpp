@@ -91,9 +91,12 @@ std::vector<Function*> getAllFunctions(Module& M, bool onlyFromMain = false) {
 void initMutex(Module &M, GlobalVariable *mutex, IRBuilder<> &builder) {
 	std::vector<Value*> args;
 	args.push_back(mutex);
-	args.push_back(ConstantPointerNull::get(PointerType::get(M.getTypeByName("union.pthread_mutexattr_t"), 0)));
-	builder.CreateCall(M.getFunction("pthread_mutex_init"), args);
-	builder.CreateCall(M.getFunction("pthread_mutex_lock"), ArrayRef<Value*>(mutex));
+	args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), 0));
+	args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), 0));
+	// args.push_back(ConstantPointerNull::get(PointerType::get(M.getTypeByName("union.pthread_mutexattr_t"), 0)));
+	// builder.CreateCall(M.getFunction("pthread_mutex_init"), args);
+	builder.CreateCall(M.getFunction("sem_init"), args);
+	// builder.CreateCall(M.getFunction("pthread_mutex_lock"), ArrayRef<Value*>(mutex));
 }
 
 bool checkIfLoop(BasicBlock* pred, BasicBlock* start = nullptr, unsigned n = 0) {
@@ -127,17 +130,37 @@ Value *createThread(Module& M, Function* callee, IRBuilder<> &builder, Value *th
 	auto genericFuncType = PointerType::get(FunctionType::get(Type::getInt8PtrTy(M.getContext()), ArrayRef<Type*>(Type::getInt8PtrTy(M.getContext())), false), 0);
 	args.push_back(builder.CreateBitCast(callee, genericFuncType));
 	args.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(M.getContext())));
-	auto pCreate = M.getFunction("pthread_create");
-	auto call = builder.CreateCall(pCreate, args);
+	auto call = builder.CreateCall(M.getFunction("pthread_create"), args);
+	builder.CreateCall(M.getFunction("pthread_detach"), ArrayRef<Value*>(builder.CreateLoad(thrd)));
 	return thrd;
 }
 
 PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) {
 	auto &ctx = M.getContext();
 
+	// create assets
+	std::vector<Type*> types;
+	types.push_back(Type::getInt64Ty(ctx));
+	types.push_back(ArrayType::get(Type::getInt8Ty(ctx), 24));
+	StructType::create(ctx, types, "union.sem_t");
+
+	types.clear();
+	types.push_back(PointerType::get(M.getTypeByName("union.sem_t"), 0));
+	types.push_back(Type::getInt32Ty(ctx));
+	types.push_back(Type::getInt32Ty(ctx));
+	auto funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
+	Function::Create(funcType, GlobalValue::ExternalLinkage, "sem_init", M)->setDSOLocal(true);
+
+	funcType = FunctionType::get(Type::getInt32Ty(ctx), ArrayRef<Type*>(types.front()), false);
+	Function::Create(funcType, GlobalValue::ExternalLinkage, "sem_post", M)->setDSOLocal(true);
+	Function::Create(funcType, GlobalValue::ExternalLinkage, "sem_wait", M)->setDSOLocal(true);
+	Function::Create(funcType, GlobalValue::ExternalLinkage, "sem_destroy", M)->setDSOLocal(true);
+
 	// create pthread_cancel function
-	auto funcType = FunctionType::get(Type::getInt32Ty(ctx), ArrayRef<Type*>(Type::getInt64Ty(ctx)), false);
+	funcType = FunctionType::get(Type::getInt32Ty(ctx), ArrayRef<Type*>(Type::getInt64Ty(ctx)), false);
 	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "pthread_cancel", M);
+
+	// ##########################
 
 	auto functions = getAllFunctions(M, true);  // TODO: not only from main
 
@@ -274,7 +297,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 				auto retInstr = cast<ReturnInst>(lastInstr);
 
 				if (!retMutex) {
-					retMutex = createGlobal(M, M.getTypeByName("union.pthread_mutex_t"));
+					retMutex = createGlobal(M, M.getTypeByName("union.sem_t"));
 				}
 
 				// substitute return instr with store instr
@@ -287,7 +310,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 				}
 
 				// create mutex and call to pthread_mutex_unlock
-				builder.CreateCall(M.getFunction("pthread_mutex_unlock"), ArrayRef<Value*>(retMutex));
+				builder.CreateCall(M.getFunction("sem_post"), ArrayRef<Value*>(retMutex));
 
 				builder.CreateRetVoid();
 				lastInstr->eraseFromParent();
@@ -304,7 +327,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		std::vector<Value*> mutexes;
 		for (auto basicBlock : basicBlocks) {
 			if (basicBlock->hasNPredecessorsOrMore(1)) {
-				auto mutex = createGlobal(M, M.getTypeByName("union.pthread_mutex_t"));
+				auto mutex = createGlobal(M, M.getTypeByName("union.sem_t"));
 				initMutex(M, mutex, mainBuilder);
 				mutexes.push_back(mutex);
 
@@ -317,8 +340,8 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 				std::vector<Value*> args;
 				args.push_back(ConstantInt::get(Type::getInt32Ty(ctx), 1));
 				args.push_back(ConstantPointerNull::get(Type::getInt32PtrTy(ctx)));
-				generalBuilder.CreateCall(M.getFunction("pthread_setcanceltype"), args);
-				generalBuilder.CreateCall(M.getFunction("pthread_mutex_lock"), ArrayRef<Value*>(mutex));
+				// generalBuilder.CreateCall(M.getFunction("pthread_setcanceltype"), args);
+				generalBuilder.CreateCall(M.getFunction("sem_wait"), ArrayRef<Value*>(mutex));
 
 				// handle preds
 				std::vector<BasicBlock*> preds;
@@ -331,7 +354,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 					generalBuilder.SetInsertPoint(syncBlock);
 
 					// unlock the next branch
-					generalBuilder.CreateCall(M.getFunction("pthread_mutex_unlock"), ArrayRef<Value*>(mutex));
+					generalBuilder.CreateCall(M.getFunction("sem_post"), ArrayRef<Value*>(mutex));
 					generalBuilder.CreateRetVoid();
 					block2sync[pred].push_back(syncBlock);
 
@@ -436,37 +459,38 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 
 			// create call to function in func
 			auto thrd = createThread(M, outFunc, mainBuilder);
+			// add to thrds to cancel later
+			thrds.push_back(thrd);
 
 			// handle loop
 			if (std::find(loop.begin(), loop.end(), basicBlock) != loop.end()) {
 				// restart itself when in loop
 				generalBuilder.SetInsertPoint(&*--basicBlock->end());
 				auto mutex = cast<CallInst>(basicBlock->getFirstNonPHI())->getArgOperand(0);
-				// generalBuilder.CreateCall(M.getFunction("pthread_mutex_lock"), ArrayRef<Value*>(mutex));
 				createThread(M, outFunc, generalBuilder, thrd);
-
-				// add to thrds to cancel later
-				thrds.push_back(thrd);
 			}
 
 			outFunc->print(outs());  // DEBUG
 		}
 
 		if (retMutex) {
-			mainBuilder.CreateCall(M.getFunction("pthread_mutex_lock"), ArrayRef<Value*>(retMutex));
+			mainBuilder.CreateCall(M.getFunction("sem_wait"), ArrayRef<Value*>(retMutex));
 		}
 		for (auto thrd : thrds) {
 			auto loadedThrd = mainBuilder.CreateLoad(thrd);
-			mainBuilder.CreateCall(M.getFunction("pthread_cancel"), ArrayRef<Value*>(loadedThrd));
+			// mainBuilder.CreateCall(M.getFunction("pthread_cancel"), ArrayRef<Value*>(loadedThrd));
 			std::vector<Value*> args;
 			args.push_back(loadedThrd);
 			args.push_back(ConstantPointerNull::get(PointerType::get(Type::getInt8PtrTy(ctx), 0)));
-			mainBuilder.CreateCall(M.getFunction("pthread_join"), args);
+			// mainBuilder.CreateCall(M.getFunction("pthread_join"), args);
 
 		}
 		for (auto mutex : mutexes) {
 			// mainBuilder.CreateCall(M.getFunction("pthread_mutex_unlock"), ArrayRef<Value*>(mutex));
-			mainBuilder.CreateCall(M.getFunction("pthread_mutex_destroy"), ArrayRef<Value*>(mutex));
+			mainBuilder.CreateCall(M.getFunction("sem_destroy"), ArrayRef<Value*>(mutex));
+		}
+		if (retMutex) {
+			mainBuilder.CreateCall(M.getFunction("sem_destroy"), ArrayRef<Value*>(retMutex));
 		}
 		if (retVal) {
 			mainBuilder.CreateRet(mainBuilder.CreateLoad(retVal));

@@ -38,6 +38,7 @@ target triple = "x86_64-pc-linux-gnu"
 %"struct.std::_Head_base.5" = type { i8* }
 %"struct.std::_Head_base.6" = type { void (%"class.std::__cxx11::basic_string"*)* }
 %union.pthread_attr_t = type { i64, [48 x i8] }
+%union.sem_t = type { i64, [24 x i8] }
 %"struct.std::thread::_State_impl" = type { %"struct.std::thread::_State", %"struct.std::thread::_Invoker" }
 %"struct.std::default_delete" = type { i8 }
 %"struct.std::_Index_tuple" = type { i8 }
@@ -391,10 +392,26 @@ declare dso_local i32 @pthread_join(i64, i8**) #1
 
 ; Function Attrs: noinline norecurse optnone uwtable
 define dso_local i32 @main() #6 {
+  %1 = alloca %union.sem_t, align 8
   call void @_Z6stdlibv()
   call void @_Z12plainPthreadv()
+  %2 = call i32 @sem_init(%union.sem_t* %1, i32 0, i32 1) #3
+  %3 = call i32 @sem_post(%union.sem_t* %1) #3
+  %4 = call i32 @sem_wait(%union.sem_t* %1)
+  %5 = call i32 @sem_destroy(%union.sem_t* %1) #3
   ret i32 0
 }
+
+; Function Attrs: nounwind
+declare dso_local i32 @sem_init(%union.sem_t*, i32, i32) #2
+
+; Function Attrs: nounwind
+declare dso_local i32 @sem_post(%union.sem_t*) #2
+
+declare dso_local i32 @sem_wait(%union.sem_t*) #1
+
+; Function Attrs: nounwind
+declare dso_local i32 @sem_destroy(%union.sem_t*) #2
 
 ; Function Attrs: noinline nounwind optnone uwtable
 define linkonce_odr dso_local zeroext i1 @_ZNKSt6thread8joinableEv(%"class.std::thread"* %0) #5 comdat align 2 {

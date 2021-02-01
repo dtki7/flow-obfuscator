@@ -1,5 +1,6 @@
 #ifdef __linux__
 #include <pthread.h>
+#include <semaphore.h>
 #elif _WIN32
 #include <Windows.h>
 #endif
@@ -36,6 +37,12 @@ int main() {
 
 #ifdef __linux__
   plainPthread();
+
+  sem_t t;
+  sem_init(&t, 0, 1);
+  sem_post(&t);
+  sem_wait(&t);
+  sem_destroy(&t);
 #elif _WIN32
   plainCreateRemoteThread();
 #endif
