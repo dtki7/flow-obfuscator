@@ -237,6 +237,38 @@ void createEnvironment(Module &M) {
 	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "sem_destroy", M)->setDSOLocal(true);
 }
 
+// searches for phi nodes and substitues them with a global
+void handlePHINodes(Module &M, std::vector<BasicBlock*> basicBlocks, IRBuilder<> &builder) {
+	for (auto basicBlock : basicBlocks) {
+		for (auto instr : getAllInstructions(basicBlock)) {
+			if (!isa<PHINode>(instr)) continue;
+			auto phi = cast<PHINode>(instr);
+
+			auto globVar = createGlobal(M, phi->getType());
+			for (unsigned i = 0; i < phi->getNumIncomingValues(); i++) {
+				auto incVal = phi->getIncomingValue(i);
+
+				if (isa<Instruction>(incVal)) {
+					// results of instructions have to be stored and loaded
+					auto incInstr = cast<Instruction>(incVal);
+					createLoader(phi, globVar, builder);
+					createStore(incInstr, globVar, builder);
+				} else if (isa<Constant>(incVal)) {
+					// otherwise we have more than one constant and have to createStore
+					assert(globVar->getInitializer()->isZeroValue());
+
+					globVar->setInitializer(cast<Constant>(incVal));
+				} else {
+					assert(false);
+				}
+			}
+
+			assert(phi->isSafeToRemove());
+			phi->eraseFromParent();
+		}
+	}
+}
+
 // ############################################################################
 
 PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) {
@@ -249,52 +281,22 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 	genericFuncType = PointerType::get(
 		FunctionType::get(Type::getInt8PtrTy(ctx), types, false), 0);
 	createEnvironment(M);
+	IRBuilder<> generalBuilder(ctx);
 
 	auto functions = getAllFunctions(M, true);
-
-	int i = 0;  // DEBUG
 	for (auto function : functions) {
-		// if (function->getName().compare("_ZN3Bbp10compModExpEiii")) continue;  // DEBUG
-		// if (++i > 20) continue;  // DEBUG
-
-		outs() << "function: " << function->getName() << "\n";
+		dbgs() << "function: " << function->getName() << "\n";
 
 		if (checkRecursive(function)) {
-			errs() << "warning: recursive functions not supported, skipping...\n";
+			errs() << "warning: recursive functions not supported! skipping "
+				<< function->getName() << "\n";
 			continue;
 		}
 
-		IRBuilder<> generalBuilder(ctx);
 		auto basicBlocks = getAllBasicBlocks(function);
 
-		// handle phi nodes
-		for (auto basicBlock : basicBlocks) {
-			for (auto instr : getAllInstructions(basicBlock)) {
-				// DEBUG
-				// instr->print(outs());
-				// outs() << "\n";
+		handlePHINodes(M, basicBlocks, generalBuilder);
 
-				if (!isa<PHINode>(instr)) continue;
-				auto phi = cast<PHINode>(instr);
-
-				auto globVar = createGlobal(M, phi->getType());
-				for (unsigned i = 0; i < phi->getNumIncomingValues(); i++) {
-					auto val = phi->getIncomingValue(i);
-					if (isa<Instruction>(val)) {
-						auto incomingInstr = cast<Instruction>(val);
-						generalBuilder.SetInsertPoint(incomingInstr);
-						createLoader(phi, globVar, generalBuilder);
-						createStore(incomingInstr, globVar, generalBuilder);
-					} else if (isa<Constant>(val)) {
-						globVar->setInitializer(cast<Constant>(val));
-					} else {
-						assert(false);
-					}
-				}
-				assert(phi->isSafeToRemove());
-				phi->eraseFromParent();
-			}
-		}
 
 		// make arguments global
 		auto argBlock = BasicBlock::Create(ctx, "arguments", function, &function->getEntryBlock());
