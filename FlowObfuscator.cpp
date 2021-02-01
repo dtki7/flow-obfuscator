@@ -14,8 +14,10 @@ std::vector<BasicBlock*> getAllBasicBlocks(Function *function);
 
 // global, because repeatedly used
 std::vector<Value*> args;  // function arguments
-std::vector<Type*> types;  // function types
+std::vector<Type*> types;  // function argument types
 Value *zero;  // ConstantInt 0
+PointerType *genericFuncType;
+FunctionType *funcType;  // funcion type
 
 template<class T>
 bool contains(std::vector<T> v, T o) {
@@ -153,7 +155,7 @@ void createStore(Instruction *instr, GlobalVariable * globVar, IRBuilder<> &buil
 	builder.CreateStore(instr, globVar);
 }
 
-// initiale semaphore
+// initialize semaphore
 void initSem(Module &M, GlobalVariable *sem, IRBuilder<> &builder) {
 	args.clear();
 	args.push_back(sem);  // semaphore
@@ -162,58 +164,93 @@ void initSem(Module &M, GlobalVariable *sem, IRBuilder<> &builder) {
 	builder.CreateCall(M.getFunction("sem_init"), args);
 }
 
+// create thread (and detach)
 Value *createThread(Module& M, Function* callee, IRBuilder<> &builder, Value *thrd = nullptr) {
-	std::vector<Value*> args;
-	//auto thrd = builder.CreateAlloca(Type::getInt64Ty(M.getContext()));
-	// thrd->setAlignment(MaybeAlign(8));
 	if (!thrd) {
 		thrd = createGlobal(M, Type::getInt64Ty(M.getContext()));
 	}
+
 	args.clear();
-	args.push_back(thrd);
-	args.push_back(ConstantPointerNull::get(PointerType::get(M.getTypeByName("union.pthread_attr_t"), 0)));
-	auto genericFuncType = PointerType::get(FunctionType::get(Type::getInt8PtrTy(M.getContext()), ArrayRef<Type*>(Type::getInt8PtrTy(M.getContext())), false), 0);
-	args.push_back(builder.CreateBitCast(callee, genericFuncType));
-	args.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(M.getContext())));
-	auto call = builder.CreateCall(M.getFunction("pthread_create"), args);
-	builder.CreateCall(M.getFunction("pthread_detach"), ArrayRef<Value*>(builder.CreateLoad(thrd)));
+	args.push_back(thrd);  // pointer to thread
+	args.push_back(ConstantPointerNull::get(PointerType::get(M.getTypeByName("union.pthread_attr_t"), 0)));  // attrs
+	args.push_back(builder.CreateBitCast(callee, genericFuncType));  // function address
+	args.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(M.getContext())));  // args
+	builder.CreateCall(M.getFunction("pthread_create"), args);
+
+	args.clear();
+	args.push_back(builder.CreateLoad(thrd));  // thread
+	builder.CreateCall(M.getFunction("pthread_detach"), args);
 	return thrd;
 }
 
+// declares types and functions that are needed for the obfuscation
+void createEnvironment(Module &M) {
+	auto &ctx = M.getContext();
+
+	// type: union.pthread_attr_t
+	types.clear();
+	types.push_back(Type::getInt64Ty(ctx));
+	types.push_back(ArrayType::get(Type::getInt8Ty(ctx), 48));
+	StructType::create(ctx, types, "union.pthread_attr_t");
+
+	// pthread_create
+	types.clear();
+	types.push_back(Type::getInt64PtrTy(ctx));
+	types.push_back(PointerType::get(M.getTypeByName("union.pthread_attr_t"), 0));
+	types.push_back(genericFuncType);
+	types.push_back(Type::getInt8PtrTy(ctx));
+	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
+	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "pthread_create", M)->setDSOLocal(true);
+
+	// pthread_detach
+	types.clear();
+	types.push_back(Type::getInt64Ty(ctx));
+	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
+	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "pthread_detach", M)->setDSOLocal(true);
+
+	// function: pthread_cancel
+	types.clear();
+	types.push_back(Type::getInt64Ty(ctx));
+	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
+	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "pthread_cancel", M)->setDSOLocal(true);
+
+	// type: union.sem_t
+	types.clear();
+	types.push_back(Type::getInt64Ty(ctx));
+	types.push_back(ArrayType::get(Type::getInt8Ty(ctx), 24));
+	StructType::create(ctx, types, "union.sem_t");
+
+	// function: sem_init
+	types.clear();
+	types.push_back(PointerType::get(M.getTypeByName("union.sem_t"), 0));
+	types.push_back(Type::getInt32Ty(ctx));
+	types.push_back(Type::getInt32Ty(ctx));
+	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
+	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "sem_init", M)->setDSOLocal(true);
+
+	// functions: sem_post, sem_wait, sem_destroy
+	types.clear();
+	types.push_back(PointerType::get(M.getTypeByName("union.sem_t"), 0));
+	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
+	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "sem_post", M)->setDSOLocal(true);
+	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "sem_wait", M)->setDSOLocal(true);
+	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "sem_destroy", M)->setDSOLocal(true);
+}
 
 // ############################################################################
 
 PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) {
 	auto &ctx = M.getContext();
 
-	// set globals
+	// initialization
 	zero = ConstantInt::get(Type::getInt32Ty(M.getContext()), 0);
-
-	// create assets
 	types.clear();
-	types.push_back(Type::getInt64Ty(ctx));
-	types.push_back(ArrayType::get(Type::getInt8Ty(ctx), 24));
-	StructType::create(ctx, types, "union.sem_t");
+	types.push_back(Type::getInt8PtrTy(M.getContext()));
+	genericFuncType = PointerType::get(
+		FunctionType::get(Type::getInt8PtrTy(ctx), types, false), 0);
+	createEnvironment(M);
 
-	types.clear();
-	types.push_back(PointerType::get(M.getTypeByName("union.sem_t"), 0));
-	types.push_back(Type::getInt32Ty(ctx));
-	types.push_back(Type::getInt32Ty(ctx));
-	auto funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
-	Function::Create(funcType, GlobalValue::ExternalLinkage, "sem_init", M)->setDSOLocal(true);
-
-	funcType = FunctionType::get(Type::getInt32Ty(ctx), ArrayRef<Type*>(types.front()), false);
-	Function::Create(funcType, GlobalValue::ExternalLinkage, "sem_post", M)->setDSOLocal(true);
-	Function::Create(funcType, GlobalValue::ExternalLinkage, "sem_wait", M)->setDSOLocal(true);
-	Function::Create(funcType, GlobalValue::ExternalLinkage, "sem_destroy", M)->setDSOLocal(true);
-
-	// create pthread_cancel function
-	funcType = FunctionType::get(Type::getInt32Ty(ctx), ArrayRef<Type*>(Type::getInt64Ty(ctx)), false);
-	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "pthread_cancel", M);
-
-	// ##########################
-
-	auto functions = getAllFunctions(M, true);  // TODO: not only from main
+	auto functions = getAllFunctions(M, true);
 
 	int i = 0;  // DEBUG
 	for (auto function : functions) {
