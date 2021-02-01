@@ -132,7 +132,7 @@ GlobalVariable *createGlobal(Module &M, Type *type) {
 }
 
 // replace the uses of the substituted value with the loaded value of the global
-void createLoader(Value* val, GlobalVariable *globVar, IRBuilder<> &builder) {
+void createLoads(Value* val, GlobalVariable *globVar, IRBuilder<> &builder) {
 	std::vector<User*> users;
 	for (auto user : val->users()) {
 		users.push_back(user);
@@ -237,6 +237,18 @@ void createEnvironment(Module &M) {
 	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "sem_destroy", M)->setDSOLocal(true);
 }
 
+// create basic block to store arguments and substitute use of arguments with loaders
+BasicBlock *handleArguments(Module &M, Function *function, IRBuilder<> &builder) {
+	auto argBlock = BasicBlock::Create(M.getContext(), "args", function, &function->getEntryBlock());
+	for (auto &arg : function->args()) {
+		auto globVar = createGlobal(M, arg.getType());
+		createLoads(&arg, globVar, builder);
+		builder.SetInsertPoint(argBlock);
+		builder.CreateStore(&arg, globVar);
+	}
+	return argBlock;
+}
+
 // searches for phi nodes and substitues them with a global
 void handlePHINodes(Module &M, std::vector<BasicBlock*> basicBlocks, IRBuilder<> &builder) {
 	for (auto basicBlock : basicBlocks) {
@@ -251,7 +263,7 @@ void handlePHINodes(Module &M, std::vector<BasicBlock*> basicBlocks, IRBuilder<>
 				if (isa<Instruction>(incVal)) {
 					// results of instructions have to be stored and loaded
 					auto incInstr = cast<Instruction>(incVal);
-					createLoader(phi, globVar, builder);
+					createLoads(phi, globVar, builder);
 					createStore(incInstr, globVar, builder);
 				} else if (isa<Constant>(incVal)) {
 					// otherwise we have more than one constant and have to createStore
@@ -281,7 +293,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 	genericFuncType = PointerType::get(
 		FunctionType::get(Type::getInt8PtrTy(ctx), types, false), 0);
 	createEnvironment(M);
-	IRBuilder<> generalBuilder(ctx);
+	IRBuilder<> builder(ctx);
 
 	auto functions = getAllFunctions(M, true);
 	for (auto function : functions) {
@@ -295,21 +307,14 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 
 		auto basicBlocks = getAllBasicBlocks(function);
 
-		handlePHINodes(M, basicBlocks, generalBuilder);
+		auto argBlock = handleArguments(M, function, builder);
+		handlePHINodes(M, basicBlocks, builder);
 
-
-		// make arguments global
-		auto argBlock = BasicBlock::Create(ctx, "arguments", function, &function->getEntryBlock());
-		IRBuilder<> builder(argBlock);
-		for (auto &arg : function->args()) {
-			auto globVar = createGlobal(M, arg.getType());
-			createLoader(&arg, globVar, builder);
-			builder.SetInsertPoint(argBlock);
-			builder.CreateStore(&arg, globVar);
-		}
-
+		// create main block (where the threads are started) ...
 		auto mainBlock = BasicBlock::Create(ctx, "main", function);
 		IRBuilder<> mainBuilder(mainBlock);
+		// ... and connect the arguments block with the main block
+		builder.SetInsertPoint(argBlock);
 		builder.CreateBr(mainBlock);
 
 		//
@@ -372,7 +377,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 					instr->eraseFromParent();
 				} else {
 					// create a loader for every user ...
-					createLoader(instr, globVar, builder);
+					createLoads(instr, globVar, builder);
 
 					// and store the return value
 					createStore(instr, globVar, builder);
@@ -431,12 +436,12 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 				if (isa<LandingPadInst>(firstInstr)) {
 					firstInstr = firstInstr->getNextNode()->getNextNode();
 				}
-				generalBuilder.SetInsertPoint(firstInstr);
+				builder.SetInsertPoint(firstInstr);
 				args.clear();
 				args.push_back(ConstantInt::get(Type::getInt32Ty(ctx), 1));
 				args.push_back(ConstantPointerNull::get(Type::getInt32PtrTy(ctx)));
-				// generalBuilder.CreateCall(M.getFunction("pthread_setcanceltype"), args);
-				generalBuilder.CreateCall(M.getFunction("sem_wait"), ArrayRef<Value*>(mutex));
+				// builder.CreateCall(M.getFunction("pthread_setcanceltype"), args);
+				builder.CreateCall(M.getFunction("sem_wait"), ArrayRef<Value*>(mutex));
 
 				// handle preds
 				std::vector<BasicBlock*> preds;
@@ -446,11 +451,11 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 				for (auto pred : preds) {
 					// create sync block
 					auto syncBlock = BasicBlock::Create(ctx, "sync", function);
-					generalBuilder.SetInsertPoint(syncBlock);
+					builder.SetInsertPoint(syncBlock);
 
 					// unlock the next branch
-					generalBuilder.CreateCall(M.getFunction("sem_post"), ArrayRef<Value*>(mutex));
-					generalBuilder.CreateRetVoid();
+					builder.CreateCall(M.getFunction("sem_post"), ArrayRef<Value*>(mutex));
+					builder.CreateRetVoid();
 					block2sync[pred].push_back(syncBlock);
 
 					// handle branch instr
@@ -560,9 +565,9 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			// handle loop
 			if (std::find(loop.begin(), loop.end(), basicBlock) != loop.end()) {
 				// restart itself when in loop
-				generalBuilder.SetInsertPoint(&*--basicBlock->end());
+				builder.SetInsertPoint(&*--basicBlock->end());
 				auto mutex = cast<CallInst>(basicBlock->getFirstNonPHI())->getArgOperand(0);
-				createThread(M, outFunc, generalBuilder, thrd);
+				createThread(M, outFunc, builder, thrd);
 			}
 
 			outFunc->print(outs());  // DEBUG
