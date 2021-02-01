@@ -294,6 +294,55 @@ void handlePHINodes(Module &M, std::vector<BasicBlock*> basicBlocks, IRBuilder<>
 	}
 }
 
+// make stack variables global
+void makeGlobal(Module &M, BasicBlock *basicBlock, IRBuilder<> &builder) {
+	auto instrs = getAllInstructions(basicBlock);
+	for (auto instr : instrs) {
+		dbgs() << "instr: "; instr->print(dbgs()); dbgs() << "\n";
+
+		bool handle = false;
+		Type *type = instr->getType();
+
+		// if the instr does not emit a type, there is nothing to make global
+		if (type->isVoidTy())
+			continue;
+
+		// stack allocations get substituted directly, so we need the contained type
+		// and need to handle them (to avoid to much redundancy)
+		if (isa<AllocaInst>(instr)) {
+			type = type->getContainedType(0);
+			handle = true;
+		// landing pads will get cloned but need the same resource, so they will be
+		// handled too
+		} else if (isa<LandingPadInst>(instr)) {
+			handle = true;
+		}
+
+		// check if uses only in this block, then we don't have to make it global
+		BasicBlock *nextBlock = basicBlock->getNextNode();
+		while(nextBlock && !handle) {
+			if (instr->isUsedInBasicBlock(nextBlock)) {
+				handle = true;
+			}
+			nextBlock = nextBlock->getNextNode();
+		}
+		if (!handle) {
+			dbgs() << "skipped\n";
+			continue;
+		}
+
+		auto globVar = createGlobal(M, type);
+		if (isa<AllocaInst>(instr)) {  // just replace and remove
+			instr->replaceAllUsesWith(globVar);
+			instr->eraseFromParent();
+		} else {
+			createLoads(instr, globVar, builder);
+			createStore(instr, globVar, builder);
+		}
+	}
+	dbgs() << "\n";
+}
+
 // ############################################################################
 
 PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) {
@@ -322,7 +371,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		auto loopBlocks = getLoopBlocks(basicBlocks);  // necessary before manipulation
 
 		auto argBlock = handleArguments(M, function, builder);
-		handlePHINodes(M, basicBlocks, builder);
+		handlePHINodes(M, basicBlocks, builder);  // necessary before manipulation
 
 		// create main block (where the threads are started) ...
 		auto mainBlock = BasicBlock::Create(ctx, "main", function);
@@ -331,68 +380,14 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		builder.SetInsertPoint(argBlock);
 		builder.CreateBr(mainBlock);
 
-		//
-		// make variables global
-		//
+		for (auto basicBlock : basicBlocks) {
+			makeGlobal(M, basicBlock, builder);
+		}
+
 		GlobalVariable *retMutex = nullptr;
 		GlobalVariable *retVal = nullptr;
 		for (auto basicBlock : basicBlocks) {
 			IRBuilder<> builder(basicBlock);
-
-			// get all instructions
-			auto bbInstrs = getAllInstructions(basicBlock);
-
-			for (auto instr : bbInstrs) {
-				// DEBUG
-				outs() << "instr: ";
-				instr->print(outs());
-				outs() << "\n";
-
-				Type *type = instr->getType();
-				if (type->isVoidTy())
-					continue;
-
-				// check if uses only in this block and continue
-				bool handle = false;
-				for (auto it = ++std::find(basicBlocks.begin(), basicBlocks.end(), basicBlock);
-						it != basicBlocks.end(); it++) {
-					if (instr->isUsedInBasicBlock(*it)) {
-						handle = true;
-						break;
-					}
-				}
-
-				// stack allocations get substituted directly, so we need the contained type
-				if (isa<AllocaInst>(instr)) {
-					type = type->getContainedType(0);
-					handle = true;
-				} else if (isa<LandingPadInst>(instr)) {
-					handle = true;
-				}
-
-				if (!handle) {
-					outs() << "skipping\n";  // DEBUG
-					continue;
-				}
-
-				auto globVar = createGlobal(M, type);
-
-				// make global
-				if (isa<AllocaInst>(instr)) {
-					// just replace and remove
-					instr->replaceAllUsesWith(globVar);
-					assert(instr->isSafeToRemove());
-					instr->eraseFromParent();
-				} else {
-					// create a loader for every user ...
-					createLoads(instr, globVar, builder);
-
-					// and store the return value
-					createStore(instr, globVar, builder);
-				}
-			}
-
-			outs() << "\n";  // DEBUG
 
 			// append ret if necessary (usally with non-void invoke instrs)
 			auto lastInstr = &*--basicBlock->end();
