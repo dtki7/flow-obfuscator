@@ -263,34 +263,32 @@ BasicBlock *handleArguments(Module &M, Function *function, IRBuilder<> &builder)
 }
 
 // searches for phi nodes and substitues them with a global
-void handlePHINodes(Module &M, std::vector<BasicBlock*> basicBlocks, IRBuilder<> &builder) {
-	for (auto basicBlock : basicBlocks) {
-		for (auto instr : getAllInstructions(basicBlock)) {
-			if (!isa<PHINode>(instr)) continue;
-			auto phi = cast<PHINode>(instr);
+void handlePHINodes(Module &M, BasicBlock *basicBlock, IRBuilder<> &builder) {
+	for (auto instr : getAllInstructions(basicBlock)) {
+		if (!isa<PHINode>(instr)) continue;
+		auto phi = cast<PHINode>(instr);
 
-			auto globVar = createGlobal(M, phi->getType());
-			for (unsigned i = 0; i < phi->getNumIncomingValues(); i++) {
-				auto incVal = phi->getIncomingValue(i);
+		auto globVar = createGlobal(M, phi->getType());
+		for (unsigned i = 0; i < phi->getNumIncomingValues(); i++) {
+			auto incVal = phi->getIncomingValue(i);
 
-				if (isa<Instruction>(incVal)) {
-					// results of instructions have to be stored and loaded
-					auto incInstr = cast<Instruction>(incVal);
-					createLoads(phi, globVar, builder);
-					createStore(incInstr, globVar, builder);
-				} else if (isa<Constant>(incVal)) {
-					// otherwise we have more than one constant and have to createStore
-					assert(globVar->getInitializer()->isZeroValue());
+			if (isa<Instruction>(incVal)) {
+				// results of instructions have to be stored and loaded
+				auto incInstr = cast<Instruction>(incVal);
+				createLoads(phi, globVar, builder);
+				createStore(incInstr, globVar, builder);
+			} else if (isa<Constant>(incVal)) {
+				// otherwise we have more than one constant and have to createStore
+				assert(globVar->getInitializer()->isZeroValue());
 
-					globVar->setInitializer(cast<Constant>(incVal));
-				} else {
-					assert(false);
-				}
+				globVar->setInitializer(cast<Constant>(incVal));
+			} else {
+				assert(false);
 			}
-
-			assert(phi->isSafeToRemove());
-			phi->eraseFromParent();
 		}
+
+		assert(phi->isSafeToRemove());
+		phi->eraseFromParent();
 	}
 }
 
@@ -371,7 +369,6 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		auto loopBlocks = getLoopBlocks(basicBlocks);  // necessary before manipulation
 
 		auto argBlock = handleArguments(M, function, builder);
-		handlePHINodes(M, basicBlocks, builder);  // necessary before manipulation
 
 		// create main block (where the threads are started) ...
 		auto mainBlock = BasicBlock::Create(ctx, "main", function);
@@ -381,6 +378,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		builder.CreateBr(mainBlock);
 
 		for (auto basicBlock : basicBlocks) {
+			handlePHINodes(M, basicBlock, builder);
 			makeGlobal(M, basicBlock, builder);
 		}
 
