@@ -13,6 +13,11 @@ using namespace llvm;
 std::vector<Instruction*> getAllInstructions(BasicBlock *basicBlock);
 std::vector<BasicBlock*> getAllBasicBlocks(Function *function);
 
+typedef struct ret_assets {
+	Value *sem;
+	Value *value;
+} ret_assets_t;
+
 // global, because repeatedly used
 std::vector<Value*> args;  // function arguments
 std::vector<Type*> types;  // function argument types
@@ -262,6 +267,21 @@ BasicBlock *handleArguments(Module &M, Function *function, IRBuilder<> &builder)
 	return argBlock;
 }
 
+ret_assets_t createReturnAssets(Module &M, Function *function) {
+	ret_assets_t retAssets;
+
+	retAssets.sem = createGlobal(M, M.getTypeByName("union.sem_t"));
+
+	auto type = function->getReturnType();
+	if (!type->isVoidTy()) {
+		retAssets.value = createGlobal(M, type);
+	} else {
+		retAssets.value = nullptr;
+	}
+
+	return retAssets;
+}
+
 // searches for phi nodes and substitues them with a global
 void handlePHINodes(Module &M, BasicBlock *basicBlock, IRBuilder<> &builder) {
 	for (auto instr : getAllInstructions(basicBlock)) {
@@ -341,6 +361,33 @@ void makeGlobal(Module &M, BasicBlock *basicBlock, IRBuilder<> &builder) {
 	dbgs() << "\n";
 }
 
+void handleLastInstr(Module &M, BasicBlock *basicBlock, const ret_assets_t &retAssets, IRBuilder<> &builder) {
+	auto lastInstr = &*--basicBlock->end();
+
+	// append ret if necessary (usally needed with non-void invoke instrs when the
+	// basic block is split)
+	if (!lastInstr->isTerminator() || isa<InvokeInst>(lastInstr)) {
+		builder.SetInsertPoint(basicBlock);
+		builder.CreateRetVoid();
+		return;
+	}
+
+	if (isa<ReturnInst>(lastInstr)) {
+		auto retInstr = cast<ReturnInst>(lastInstr);
+		builder.SetInsertPoint(lastInstr);
+
+		builder.CreateCall(M.getFunction("sem_post"), ArrayRef<Value*>(retAssets.sem));
+
+		// substitute return instr with store instr and always return void
+		auto retVal = retInstr->getReturnValue();
+		if (retVal) {
+			builder.CreateStore(retVal, retAssets.value);
+			builder.CreateRetVoid();
+			lastInstr->eraseFromParent();
+		}
+	}
+}
+
 // ############################################################################
 
 PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) {
@@ -369,6 +416,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		auto loopBlocks = getLoopBlocks(basicBlocks);  // necessary before manipulation
 
 		auto argBlock = handleArguments(M, function, builder);
+		auto retAssets = createReturnAssets(M, function);
 
 		// create main block (where the threads are started) ...
 		auto mainBlock = BasicBlock::Create(ctx, "main", function);
@@ -380,43 +428,11 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		for (auto basicBlock : basicBlocks) {
 			handlePHINodes(M, basicBlock, builder);
 			makeGlobal(M, basicBlock, builder);
+			handleLastInstr(M, basicBlock, retAssets, builder);
 		}
 
-		GlobalVariable *retMutex = nullptr;
-		GlobalVariable *retVal = nullptr;
-		for (auto basicBlock : basicBlocks) {
-			IRBuilder<> builder(basicBlock);
-
-			// append ret if necessary (usally with non-void invoke instrs)
-			auto lastInstr = &*--basicBlock->end();
-			if (!lastInstr->isTerminator() || isa<InvokeInst>(lastInstr)) {
-				builder.SetInsertPoint(basicBlock);
-				builder.CreateRetVoid();
-			}
-
-			if (isa<ReturnInst>(lastInstr)) {
-				auto retInstr = cast<ReturnInst>(lastInstr);
-
-				if (!retMutex) {
-					retMutex = createGlobal(M, M.getTypeByName("union.sem_t"));
-				}
-
-				// substitute return instr with store instr
-				if (retInstr->getReturnValue()) {
-					if (!retVal) {
-						retVal = createGlobal(M, retInstr->getReturnValue()->getType());
-					}
-					builder.SetInsertPoint(lastInstr);
-					builder.CreateStore(retInstr->getReturnValue(), retVal);
-				}
-
-				// create mutex and call to pthread_mutex_unlock
-				builder.CreateCall(M.getFunction("sem_post"), ArrayRef<Value*>(retMutex));
-
-				builder.CreateRetVoid();
-				lastInstr->eraseFromParent();
-			}
-		}
+		GlobalVariable *retMutex = cast<GlobalVariable>(retAssets.sem);
+		GlobalVariable *retVal = retAssets.value ? cast<GlobalVariable>(retAssets.value) : nullptr;
 
 		// create call to pthread_mutex_init and pthread_mutex_lock
 		if (retMutex) {
