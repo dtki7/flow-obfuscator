@@ -14,8 +14,8 @@ std::vector<Instruction*> getAllInstructions(BasicBlock *basicBlock);
 std::vector<BasicBlock*> getAllBasicBlocks(Function *function);
 
 typedef struct ret_assets {
-	Value *sem;
-	Value *value;
+	GlobalVariable *sem;
+	GlobalVariable *value;
 } ret_assets_t;
 
 // global, because repeatedly used
@@ -267,6 +267,8 @@ BasicBlock *handleArguments(Module &M, Function *function, IRBuilder<> &builder)
 	return argBlock;
 }
 
+// creates the global variable for the semaphore and the return value (if present)
+// used by the parent func
 ret_assets_t createReturnAssets(Module &M, Function *function) {
 	ret_assets_t retAssets;
 
@@ -361,30 +363,103 @@ void makeGlobal(Module &M, BasicBlock *basicBlock, IRBuilder<> &builder) {
 	dbgs() << "\n";
 }
 
-void handleLastInstr(Module &M, BasicBlock *basicBlock, const ret_assets_t &retAssets, IRBuilder<> &builder) {
-	auto lastInstr = &*--basicBlock->end();
+// substitute return instr with store instr (if value present) and always return void
+// also release the parent function
+void handleRetInstr(Module &M, ReturnInst *retInstr, const ret_assets_t &retAssets, IRBuilder<> &builder) {
+	builder.SetInsertPoint(retInstr);
 
-	// append ret if necessary (usally needed with non-void invoke instrs when the
-	// basic block is split)
-	if (!lastInstr->isTerminator() || isa<InvokeInst>(lastInstr)) {
-		builder.SetInsertPoint(basicBlock);
-		builder.CreateRetVoid();
-		return;
+	auto retVal = retInstr->getReturnValue();
+	if (retVal) {
+		builder.CreateStore(retVal, retAssets.value);
+		builder.SetInsertPoint(builder.CreateRetVoid());
+		retInstr->eraseFromParent();
+	}
+	builder.CreateCall(M.getFunction("sem_post"), ArrayRef<Value*>(retAssets.sem));
+}
+
+// create the wait point for the given basic block
+void setWaitPoint(Module &M, BasicBlock *basicBlock, GlobalVariable *sem, IRBuilder<> &builder) {
+	// get the first instruction ...
+	auto firstInstr = basicBlock->getFirstNonPHI();
+	if (isa<LandingPadInst>(firstInstr)) {
+		// the first landing block instrs will be cloned and erased from the
+		// parent, so we skip them
+		firstInstr = firstInstr->getNextNode()->getNextNode();
+	}
+	builder.SetInsertPoint(firstInstr);
+
+	// ... and insert the wait
+	args.clear();
+	args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), 1));
+	args.push_back(ConstantPointerNull::get(Type::getInt32PtrTy(M.getContext())));
+	builder.CreateCall(M.getFunction("sem_wait"), ArrayRef<Value*>(sem));
+}
+
+// extends the sync blocks for invoke instrs and connects them
+void handleInvokeSync(BasicBlock *pred, BasicBlock *syncBlock, InvokeInst *invokeInstr, Instruction *firstSuccInstr) {
+	if (!isa<LandingPadInst>(firstSuccInstr)) {  // normal dest
+		// move the store instruction to the syncBlock (if invoke not void)
+		auto storeInstr = invokeInstr->getNextNode();
+		if (storeInstr) {
+			storeInstr->moveBefore(syncBlock->getFirstNonPHI());
+		}
+
+		invokeInstr->setNormalDest(syncBlock);
+
+	} else {  // unwind dest
+		// clone the landing pad and store instr ...
+		auto landingPad = cast<LandingPadInst>(firstSuccInstr);
+		auto landingPadClone = landingPad->clone();
+		auto storeInstrClone = landingPad->getNextNode()->clone();
+
+		// ... and move them to the sync block
+		auto insertPoint = syncBlock->getFirstNonPHI();
+		landingPadClone->insertBefore(insertPoint);
+		storeInstrClone->insertBefore(insertPoint);
+		storeInstrClone->setOperand(0, landingPadClone);
+
+		invokeInstr->setUnwindDest(syncBlock);
+	}
+}
+
+// create the release block for the given basic block
+void setReleasePoints(Module &M, Function *function, BasicBlock *basicBlock, GlobalVariable *sem, IRBuilder<> &builder) {
+	std::vector<BasicBlock*> preds;
+	for (auto pred : predecessors(basicBlock)) {
+		preds.push_back(pred);
 	}
 
-	if (isa<ReturnInst>(lastInstr)) {
-		auto retInstr = cast<ReturnInst>(lastInstr);
-		builder.SetInsertPoint(lastInstr);
+	for (auto pred : preds) {
+		// create sync block
+		auto syncBlock = BasicBlock::Create(M.getContext(), "sync", function);
+		builder.SetInsertPoint(syncBlock);
 
-		builder.CreateCall(M.getFunction("sem_post"), ArrayRef<Value*>(retAssets.sem));
+		// unlock the basic block
+		builder.CreateCall(M.getFunction("sem_post"), ArrayRef<Value*>(sem));
+		builder.CreateRetVoid();
 
-		// substitute return instr with store instr and always return void
-		auto retVal = retInstr->getReturnValue();
-		if (retVal) {
-			builder.CreateStore(retVal, retAssets.value);
-			builder.CreateRetVoid();
-			lastInstr->eraseFromParent();
+		// handle terminator
+		auto lastInstr = &*--pred->end();
+
+		// branch
+		if (isa<BranchInst>(lastInstr)) {
+			auto brInstr = cast<BranchInst>(lastInstr);
+			brInstr->replaceSuccessorWith(basicBlock, syncBlock);
+			continue;
 		}
+
+		// look for invoke
+		while (lastInstr) {
+			if (isa<InvokeInst>(lastInstr)) break;
+			lastInstr = lastInstr->getPrevNode();
+		}
+		if (lastInstr && isa<InvokeInst>(lastInstr)) {
+			handleInvokeSync(pred, syncBlock, cast<InvokeInst>(lastInstr), basicBlock->getFirstNonPHI());
+			continue;
+		}
+
+		// should be unreachable
+		assert(false);
 	}
 }
 
@@ -421,74 +496,35 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		// create main block (where the threads are started) ...
 		auto mainBlock = BasicBlock::Create(ctx, "main", function);
 		IRBuilder<> mainBuilder(mainBlock);
-		// ... and connect the arguments block with the main block
+		// ... and connect the arguments block with the main block ...
 		builder.SetInsertPoint(argBlock);
 		builder.CreateBr(mainBlock);
+		// ... and initiate the return semaphore
+		initSem(M, retAssets.sem, mainBuilder);
 
+		// data flow
 		for (auto basicBlock : basicBlocks) {
 			handlePHINodes(M, basicBlock, builder);
 			makeGlobal(M, basicBlock, builder);
-			handleLastInstr(M, basicBlock, retAssets, builder);
-		}
 
-		GlobalVariable *retMutex = cast<GlobalVariable>(retAssets.sem);
-		GlobalVariable *retVal = retAssets.value ? cast<GlobalVariable>(retAssets.value) : nullptr;
-
-		// create call to pthread_mutex_init and pthread_mutex_lock
-		if (retMutex) {
-			initSem(M, retMutex, mainBuilder);
-		}
-
-		// handle synchronization
-		std::map<BasicBlock*, std::vector<BasicBlock*>> block2sync;
-		std::vector<Value*> mutexes;
-		for (auto basicBlock : basicBlocks) {
-			if (basicBlock->hasNPredecessorsOrMore(1)) {
-				auto mutex = createGlobal(M, M.getTypeByName("union.sem_t"));
-				initSem(M, mutex, mainBuilder);
-				mutexes.push_back(mutex);
-
-				// create call to mutex lock
-				auto firstInstr = basicBlock->getFirstNonPHI();
-				if (isa<LandingPadInst>(firstInstr)) {
-					firstInstr = firstInstr->getNextNode()->getNextNode();
-				}
-				builder.SetInsertPoint(firstInstr);
-				args.clear();
-				args.push_back(ConstantInt::get(Type::getInt32Ty(ctx), 1));
-				args.push_back(ConstantPointerNull::get(Type::getInt32PtrTy(ctx)));
-				// builder.CreateCall(M.getFunction("pthread_setcanceltype"), args);
-				builder.CreateCall(M.getFunction("sem_wait"), ArrayRef<Value*>(mutex));
-
-				// handle preds
-				std::vector<BasicBlock*> preds;
-				for (auto pred : predecessors(basicBlock)) {
-					preds.push_back(pred);
-				}
-				for (auto pred : preds) {
-					// create sync block
-					auto syncBlock = BasicBlock::Create(ctx, "sync", function);
-					builder.SetInsertPoint(syncBlock);
-
-					// unlock the next branch
-					builder.CreateCall(M.getFunction("sem_post"), ArrayRef<Value*>(mutex));
-					builder.CreateRetVoid();
-					block2sync[pred].push_back(syncBlock);
-
-					// handle branch instr
-					auto lastInstr = &*--pred->end();
-					if (isa<BranchInst>(lastInstr)) {
-						auto brInstr = cast<BranchInst>(lastInstr);
-						brInstr->replaceSuccessorWith(basicBlock, syncBlock);
-					}
-				}
+			auto lastInstr = &*--basicBlock->end();
+			if (isa<ReturnInst>(lastInstr)) {
+				handleRetInstr(M, cast<ReturnInst>(lastInstr), retAssets, builder);
 			}
 		}
 
-		// DEBUG
-		// outs() << "\n";
-		// function->print(outs());
-		// outs() << "\n";
+		// synchronization
+		std::vector<GlobalVariable*> sems;
+		for (auto basicBlock : basicBlocks) {
+			if (!basicBlock->hasNPredecessorsOrMore(1)) continue;
+
+			// create global for semaphore
+			sems.push_back(createGlobal(M, M.getTypeByName("union.sem_t")));
+			initSem(M, sems.back(), mainBuilder);
+
+			setWaitPoint(M, basicBlock, sems.back(), builder);
+			setReleasePoints(M, function, basicBlock, sems.back(), builder);
+		}
 
 		//
 		// move basic blocks to new function and create call from func
@@ -502,7 +538,11 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			auto funcType = FunctionType::get(Type::getVoidTy(ctx), false);
 			auto outFunc = Function::Create(funcType, GlobalValue::PrivateLinkage, "newFunc", M);
 			auto tmpBlock = BasicBlock::Create(ctx, "", outFunc);
+			// outs() << "whaaat: \n";
+			// basicBlock->print(outs());
+			// tmpBlock->print(outs());
 			basicBlock->moveAfter(tmpBlock);
+			// outs() << "whaaat2\n";
 			tmpBlock->eraseFromParent();
 
 			// create sync block
@@ -513,9 +553,9 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			if (isa<ResumeInst>(instr)) {  // handle resume terminator (TODO (optional): exception handling doesn't work)
 				outFunc->setPersonalityFn(function->getPersonalityFn());
 			} else if (isa<BranchInst>(instr)) {  // handle branch
-				auto branch = cast<BranchInst>(instr);
-				for (unsigned i = 0; i < branch->getNumSuccessors(); i++) {
-					branch->getSuccessor(i)->moveAfter(basicBlock);
+				// auto branch = cast<BranchInst>(instr);
+				for (unsigned i = 0; i < instr->getNumSuccessors(); i++) {
+					instr->getSuccessor(i)->moveAfter(basicBlock);
 					// block2sync[basicBlock].at(i)->moveAfter(basicBlock);
 					// branch->setSuccessor(i, block2sync[basicBlock].at(i));
 				}
@@ -528,38 +568,9 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 				instr = instr->getPrevNode();
 			}
 			if(instr && isa<InvokeInst>(instr)) {
-				// DEBUG
-				// outs() << "invoke: ";
-				// instr->print(outs());
-				// outs() << "\n";
-
-				auto invokeInstr = cast<InvokeInst>(instr);
-				auto origLandingPad = invokeInstr->getLandingPadInst();
-
-				// create basic block for landing
-				auto landingPadBlock = BasicBlock::Create(ctx, "landing", outFunc);
-				IRBuilder<> builder(landingPadBlock);
-				auto ret = builder.CreateRetVoid();
-
-				// clone and insert the landing pad and the store instruction
-				auto landingPad = origLandingPad->clone();
-				auto storeInstr = origLandingPad->getNextNode()->clone();
-				landingPad->insertBefore(ret);
-				storeInstr->insertBefore(ret);
-				storeInstr->setOperand(0, landingPad);
-
-				// set the destinations of the invoke instr
-				auto normalDest = basicBlock->splitBasicBlock(invokeInstr->getNextNode());
-				(*--basicBlock->end()).eraseFromParent();  // automatically created branch
-				normalDest->moveAfter(basicBlock);
-				invokeInstr->setNormalDest(normalDest);
-				invokeInstr->setUnwindDest(landingPadBlock);
-
-				// add the sync instrs to the dests
-				block2sync[basicBlock].at(0)->getFirstNonPHI()->moveBefore(&*--normalDest->end());
-				block2sync[basicBlock].at(1)->getFirstNonPHI()->moveBefore(&*--landingPadBlock->end());
-				block2sync[basicBlock].at(0)->eraseFromParent();
-				block2sync[basicBlock].at(1)->eraseFromParent();
+				for (unsigned i = 0; i < instr->getNumSuccessors(); i++) {
+					instr->getSuccessor(i)->moveAfter(basicBlock);
+				}
 
 				// move personality function for landing pad
 				outFunc->setPersonalityFn(function->getPersonalityFn());
@@ -567,6 +578,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 
 			// landing pads should've beem cloned to the new function
 			instr = basicBlock->getFirstNonPHI();
+			basicBlock->print(outs());
 			if(isa<LandingPadInst>(instr)) {
 				assert(instr->getNextNode()->isSafeToRemove());
 				assert(instr->isSafeToRemove());
@@ -590,6 +602,11 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			outFunc->print(outs());  // DEBUG
 		}
 
+
+		// TODO: delete
+		GlobalVariable *retMutex = cast<GlobalVariable>(retAssets.sem);
+		GlobalVariable *retVal = retAssets.value ? cast<GlobalVariable>(retAssets.value) : nullptr;
+
 		if (retMutex) {
 			mainBuilder.CreateCall(M.getFunction("sem_wait"), ArrayRef<Value*>(retMutex));
 		}
@@ -602,7 +619,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			// mainBuilder.CreateCall(M.getFunction("pthread_join"), args);
 
 		}
-		for (auto mutex : mutexes) {
+		for (auto mutex : sems) {
 			// mainBuilder.CreateCall(M.getFunction("pthread_mutex_unlock"), ArrayRef<Value*>(mutex));
 			mainBuilder.CreateCall(M.getFunction("sem_destroy"), ArrayRef<Value*>(mutex));
 		}
