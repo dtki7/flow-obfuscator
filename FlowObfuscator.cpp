@@ -463,6 +463,43 @@ void setReleasePoints(Module &M, Function *function, BasicBlock *basicBlock, Glo
 	}
 }
 
+// creates a new function, moves everything required by the basic block to the
+// new function and erases landing pad and the following store instr if present
+Function *createNewFunc(Module &M, Function *function, BasicBlock *basicBlock) {
+	// create new function and move basic block to it
+	auto funcType = FunctionType::get(Type::getVoidTy(M.getContext()), false);
+	auto newFunc = Function::Create(funcType, GlobalValue::PrivateLinkage, "newFunc", M);
+	auto tmpBlock = BasicBlock::Create(M.getContext(), "", newFunc);
+	basicBlock->moveAfter(tmpBlock);
+	tmpBlock->eraseFromParent();
+
+	auto instr = &*std::prev(basicBlock->end(), 1);
+
+	// move the personality attribute if required
+	// TODO (optional): exception handling doesn't work
+	if (isa<ResumeInst>(instr) || isa<InvokeInst>(instr)) {
+		newFunc->setPersonalityFn(function->getPersonalityFn());
+	}
+	// move successors
+	if (isa<BranchInst>(instr) || isa<InvokeInst>(instr)) {
+		for (unsigned i = 0; i < instr->getNumSuccessors(); i++) {
+			instr->getSuccessor(i)->moveAfter(basicBlock);
+		}
+	}
+
+	// landing pad and store instrs already have been cloned to the new function
+	// (see handleInvokeSync) and will be removed
+	instr = basicBlock->getFirstNonPHI();
+	if(isa<LandingPadInst>(instr)) {
+		assert(instr->getNextNode()->isSafeToRemove());
+		assert(instr->isSafeToRemove());
+		instr->getNextNode()->eraseFromParent();
+		instr->eraseFromParent();
+	}
+
+	return newFunc;
+}
+
 // ############################################################################
 
 PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) {
@@ -526,82 +563,20 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			setReleasePoints(M, function, basicBlock, sems.back(), builder);
 		}
 
-		//
-		// move basic blocks to new function and create call from func
-		//
-		int i = 0;
+		// relocation
 		std::vector<Value*> thrds;
 		for (auto basicBlock : basicBlocks) {
-			// if (++i > 18) continue;  // DEBUG
+			auto newFunc = createNewFunc(M, function, basicBlock);
+			thrds.push_back(createThread(M, newFunc, mainBuilder));
 
-			// create function and move basic block to it
-			auto funcType = FunctionType::get(Type::getVoidTy(ctx), false);
-			auto outFunc = Function::Create(funcType, GlobalValue::PrivateLinkage, "newFunc", M);
-			auto tmpBlock = BasicBlock::Create(ctx, "", outFunc);
-			// outs() << "whaaat: \n";
-			// basicBlock->print(outs());
-			// tmpBlock->print(outs());
-			basicBlock->moveAfter(tmpBlock);
-			// outs() << "whaaat2\n";
-			tmpBlock->eraseFromParent();
-
-			// create sync block
-			// IRBuilder<> syncBuilder(syncBlock);
-			// syncBuilder.CreateBr(basicBlock);
-
-			auto instr = &*std::prev(basicBlock->end(), 1);
-			if (isa<ResumeInst>(instr)) {  // handle resume terminator (TODO (optional): exception handling doesn't work)
-				outFunc->setPersonalityFn(function->getPersonalityFn());
-			} else if (isa<BranchInst>(instr)) {  // handle branch
-				// auto branch = cast<BranchInst>(instr);
-				for (unsigned i = 0; i < instr->getNumSuccessors(); i++) {
-					instr->getSuccessor(i)->moveAfter(basicBlock);
-					// block2sync[basicBlock].at(i)->moveAfter(basicBlock);
-					// branch->setSuccessor(i, block2sync[basicBlock].at(i));
-				}
-			}
-
-			// handle invoke terminator
-			instr = &*--basicBlock->end();
-			while (instr) {
-				if (isa<InvokeInst>(instr)) break;
-				instr = instr->getPrevNode();
-			}
-			if(instr && isa<InvokeInst>(instr)) {
-				for (unsigned i = 0; i < instr->getNumSuccessors(); i++) {
-					instr->getSuccessor(i)->moveAfter(basicBlock);
-				}
-
-				// move personality function for landing pad
-				outFunc->setPersonalityFn(function->getPersonalityFn());
-			}
-
-			// landing pads should've beem cloned to the new function
-			instr = basicBlock->getFirstNonPHI();
-			basicBlock->print(outs());
-			if(isa<LandingPadInst>(instr)) {
-				assert(instr->getNextNode()->isSafeToRemove());
-				assert(instr->isSafeToRemove());
-				instr->getNextNode()->eraseFromParent();
-				instr->eraseFromParent();
-			}
-
-			// create call to function in func
-			auto thrd = createThread(M, outFunc, mainBuilder);
-			// add to thrds to cancel later
-			thrds.push_back(thrd);
-
-			// handle loop
+			// the new function will restart itself when in loop
 			if (loopBlocks.find(basicBlock) != loopBlocks.end()) {
-				// restart itself when in loop
 				builder.SetInsertPoint(&*--basicBlock->end());
-				auto mutex = cast<CallInst>(basicBlock->getFirstNonPHI())->getArgOperand(0);
-				createThread(M, outFunc, builder, thrd);
+				createThread(M, newFunc, builder, thrds.back());
 			}
-
-			outFunc->print(outs());  // DEBUG
 		}
 
+		// cleanup
 
 		// TODO: delete
 		GlobalVariable *retMutex = cast<GlobalVariable>(retAssets.sem);
