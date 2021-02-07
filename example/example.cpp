@@ -11,4 +11,6 @@ int main() {
 
   // Close the file
   MyFile.close();
+
+  throw("asdf");
 }

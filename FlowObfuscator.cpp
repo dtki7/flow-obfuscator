@@ -31,7 +31,7 @@ bool contains(std::vector<T> v, T o) {
 }
 
 // check if basic block is in a loop
-bool checkIfLoop(BasicBlock* block, BasicBlock* start = nullptr, int n = 30) {
+bool checkIfLoop(BasicBlock* block, BasicBlock* start = nullptr, int n = 10) {
 	if (--n < 0) return false;  // depth
 	if (start == block) return true;
 	if (!start) start = block;
@@ -221,6 +221,13 @@ void createEnvironment(Module &M) {
 	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
 	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "pthread_cancel", M)->setDSOLocal(true);
 
+	// function: pthread_join
+	types.clear();
+	types.push_back(Type::getInt64Ty(ctx));
+	types.push_back(PointerType::get(Type::getInt8PtrTy(ctx), 0));
+	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
+	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "pthread_join", M)->setDSOLocal(true);
+
 	// type: union.sem_t
 	types.clear();
 	types.push_back(Type::getInt64Ty(ctx));
@@ -394,7 +401,7 @@ void setWaitPoint(Module &M, BasicBlock *basicBlock, GlobalVariable *sem, IRBuil
 }
 
 // extends the sync blocks for invoke instrs and connects them
-void handleInvokeSync(BasicBlock *pred, BasicBlock *syncBlock, InvokeInst *invokeInstr, Instruction *firstSuccInstr) {
+void handleInvokeSync(Module &M, BasicBlock *pred, BasicBlock *syncBlock, InvokeInst *invokeInstr, Instruction *firstSuccInstr) {
 	if (!isa<LandingPadInst>(firstSuccInstr)) {  // normal dest
 		// move the store instruction to the syncBlock (if invoke not void)
 		auto storeInstr = invokeInstr->getNextNode();
@@ -407,7 +414,7 @@ void handleInvokeSync(BasicBlock *pred, BasicBlock *syncBlock, InvokeInst *invok
 	} else {  // unwind dest
 		// clone the landing pad and store instr ...
 		auto landingPad = cast<LandingPadInst>(firstSuccInstr);
-		auto landingPadClone = landingPad->clone();
+		auto landingPadClone = cast<LandingPadInst>(landingPad->clone());
 		auto storeInstrClone = landingPad->getNextNode()->clone();
 
 		// ... and move them to the sync block
@@ -415,6 +422,11 @@ void handleInvokeSync(BasicBlock *pred, BasicBlock *syncBlock, InvokeInst *invok
 		landingPadClone->insertBefore(insertPoint);
 		storeInstrClone->insertBefore(insertPoint);
 		storeInstrClone->setOperand(0, landingPadClone);
+
+
+		if (landingPadClone->isCleanup()) {
+			landingPadClone->addClause(ConstantPointerNull::get(Type::getInt8PtrTy(M.getContext())));
+		}
 
 		invokeInstr->setUnwindDest(syncBlock);
 	}
@@ -452,7 +464,7 @@ void setReleasePoints(Module &M, Function *function, BasicBlock *basicBlock, Glo
 			lastInstr = lastInstr->getPrevNode();
 		}
 		if (lastInstr && isa<InvokeInst>(lastInstr)) {
-			handleInvokeSync(pred, syncBlock, cast<InvokeInst>(lastInstr), basicBlock->getFirstNonPHI());
+			handleInvokeSync(M, pred, syncBlock, cast<InvokeInst>(lastInstr), basicBlock->getFirstNonPHI());
 			continue;
 		}
 
@@ -614,7 +626,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		}
 	}
 
-    return PreservedAnalyses::none();  // DEBUG (actually none)
+    return PreservedAnalyses::none();
 }
 
 extern "C" ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK
