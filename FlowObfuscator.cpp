@@ -390,9 +390,6 @@ void setWaitPoint(Module &M, BasicBlock *basicBlock, GlobalVariable *sem, IRBuil
 	builder.SetInsertPoint(firstInstr);
 
 	// ... and insert the wait
-	args.clear();
-	args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), 1));
-	args.push_back(ConstantPointerNull::get(Type::getInt32PtrTy(M.getContext())));
 	builder.CreateCall(M.getFunction("sem_wait"), ArrayRef<Value*>(sem));
 }
 
@@ -501,6 +498,28 @@ Function *createNewFunc(Module &M, Function *function, BasicBlock *basicBlock) {
 	return newFunc;
 }
 
+// clean created threads and semaphores with respect to resources
+void cleanup(Module &M, std::vector<Value*> thrds, std::vector<GlobalVariable*> sems, IRBuilder<> &builder) {
+	// clean threads
+	for (auto thrd : thrds) {
+		auto loadedThrd = builder.CreateLoad(thrd);
+
+		// terminate unused threads ...
+		builder.CreateCall(M.getFunction("pthread_cancel"), ArrayRef<Value*>(loadedThrd));
+
+		// ... and join them to free resources
+		args.clear();
+		args.push_back(loadedThrd);  // threads
+		args.push_back(ConstantPointerNull::get(PointerType::get(Type::getInt8PtrTy(M.getContext()), 0)));  // return
+		builder.CreateCall(M.getFunction("pthread_join"), args);
+	}
+
+	// clean sems
+	for (auto sem : sems) {
+		builder.CreateCall(M.getFunction("sem_destroy"), ArrayRef<Value*>(sem));
+	}
+}
+
 // ############################################################################
 
 PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) {
@@ -515,6 +534,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 	createEnvironment(M);
 	IRBuilder<> builder(ctx);
 
+	// transform each function
 	auto functions = getAllFunctions(M, true);
 	for (auto function : functions) {
 		dbgs() << "function: " << function->getName() << "\n";
@@ -525,9 +545,11 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			continue;
 		}
 
+		// gather information
 		auto basicBlocks = getAllBasicBlocks(function);
 		auto loopBlocks = getLoopBlocks(basicBlocks);  // necessary before manipulation
 
+		// transform arguments and return values
 		auto argBlock = handleArguments(M, function, builder);
 		auto retAssets = createReturnAssets(M, function);
 
@@ -581,35 +603,18 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		mainBuilder.CreateCall(M.getFunction("sem_wait"), ArrayRef<Value*>(retAssets.sem));
 
 		// cleanup
-		for (auto thrd : thrds) {
-			auto loadedThrd = mainBuilder.CreateLoad(thrd);
-			mainBuilder.CreateCall(M.getFunction("pthread_cancel"), ArrayRef<Value*>(loadedThrd));
-			args.clear();
-			args.push_back(loadedThrd);
-			args.push_back(ConstantPointerNull::get(PointerType::get(Type::getInt8PtrTy(ctx), 0)));
-			mainBuilder.CreateCall(M.getFunction("pthread_join"), args);
+		sems.push_back(retAssets.sem);
+		cleanup(M, thrds, sems, mainBuilder);
 
-		}
-		for (auto mutex : sems) {
-			mainBuilder.CreateCall(M.getFunction("sem_destroy"), ArrayRef<Value*>(mutex));
-		}
-
-		// TODO: delete
-		GlobalVariable *retMutex = cast<GlobalVariable>(retAssets.sem);
-		GlobalVariable *retVal = retAssets.value ? cast<GlobalVariable>(retAssets.value) : nullptr;
-		if (retMutex) {
-			// mainBuilder.CreateCall(M.getFunction("sem_destroy"), ArrayRef<Value*>(retMutex));
-		}
-		if (retVal) {
-			mainBuilder.CreateRet(mainBuilder.CreateLoad(retVal));
+		// return
+		if (retAssets.value) {
+			mainBuilder.CreateRet(mainBuilder.CreateLoad(retAssets.value));
 		} else {
 			mainBuilder.CreateRetVoid();
 		}
-
-		function->print(outs());  // DEBUG
-		outs() << "\n\n";  // DEBUG
 	}
-    return PreservedAnalyses::all();  // DEBUG (actually none)
+
+    return PreservedAnalyses::none();  // DEBUG (actually none)
 }
 
 extern "C" ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK
