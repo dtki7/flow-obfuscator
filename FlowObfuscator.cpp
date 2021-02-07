@@ -170,10 +170,14 @@ void initSem(Module &M, GlobalVariable *sem, IRBuilder<> &builder) {
 	builder.CreateCall(M.getFunction("sem_init"), args);
 }
 
-// create thread (and detach)
+// create thread and detach if thread restarted in loop
 Value *createThread(Module& M, Function* callee, IRBuilder<> &builder, Value *thrd = nullptr) {
 	if (!thrd) {
 		thrd = createGlobal(M, Type::getInt64Ty(M.getContext()));
+	} else {
+		args.clear();
+		args.push_back(builder.CreateLoad(thrd));  // thread
+		builder.CreateCall(M.getFunction("pthread_detach"), args);
 	}
 
 	args.clear();
@@ -183,9 +187,6 @@ Value *createThread(Module& M, Function* callee, IRBuilder<> &builder, Value *th
 	args.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(M.getContext())));  // args
 	builder.CreateCall(M.getFunction("pthread_create"), args);
 
-	args.clear();
-	args.push_back(builder.CreateLoad(thrd));  // thread
-	builder.CreateCall(M.getFunction("pthread_detach"), args);
 	return thrd;
 }
 
@@ -268,7 +269,7 @@ BasicBlock *handleArguments(Module &M, Function *function, IRBuilder<> &builder)
 }
 
 // creates the global variable for the semaphore and the return value (if present)
-// used by the parent func
+// used by the parent function
 ret_assets_t createReturnAssets(Module &M, Function *function) {
 	ret_assets_t retAssets;
 
@@ -557,6 +558,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 
 			// create global for semaphore
 			sems.push_back(createGlobal(M, M.getTypeByName("union.sem_t")));
+			// TODO (optional): only initiate semaphores once in the main func
 			initSem(M, sems.back(), mainBuilder);
 
 			setWaitPoint(M, basicBlock, sems.back(), builder);
@@ -575,31 +577,28 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 				createThread(M, newFunc, builder, thrds.back());
 			}
 		}
+		// create wait point for parent function
+		mainBuilder.CreateCall(M.getFunction("sem_wait"), ArrayRef<Value*>(retAssets.sem));
 
 		// cleanup
+		for (auto thrd : thrds) {
+			auto loadedThrd = mainBuilder.CreateLoad(thrd);
+			mainBuilder.CreateCall(M.getFunction("pthread_cancel"), ArrayRef<Value*>(loadedThrd));
+			args.clear();
+			args.push_back(loadedThrd);
+			args.push_back(ConstantPointerNull::get(PointerType::get(Type::getInt8PtrTy(ctx), 0)));
+			mainBuilder.CreateCall(M.getFunction("pthread_join"), args);
+
+		}
+		for (auto mutex : sems) {
+			mainBuilder.CreateCall(M.getFunction("sem_destroy"), ArrayRef<Value*>(mutex));
+		}
 
 		// TODO: delete
 		GlobalVariable *retMutex = cast<GlobalVariable>(retAssets.sem);
 		GlobalVariable *retVal = retAssets.value ? cast<GlobalVariable>(retAssets.value) : nullptr;
-
 		if (retMutex) {
-			mainBuilder.CreateCall(M.getFunction("sem_wait"), ArrayRef<Value*>(retMutex));
-		}
-		for (auto thrd : thrds) {
-			auto loadedThrd = mainBuilder.CreateLoad(thrd);
-			// mainBuilder.CreateCall(M.getFunction("pthread_cancel"), ArrayRef<Value*>(loadedThrd));
-			args.clear();
-			args.push_back(loadedThrd);
-			args.push_back(ConstantPointerNull::get(PointerType::get(Type::getInt8PtrTy(ctx), 0)));
-			// mainBuilder.CreateCall(M.getFunction("pthread_join"), args);
-
-		}
-		for (auto mutex : sems) {
-			// mainBuilder.CreateCall(M.getFunction("pthread_mutex_unlock"), ArrayRef<Value*>(mutex));
-			mainBuilder.CreateCall(M.getFunction("sem_destroy"), ArrayRef<Value*>(mutex));
-		}
-		if (retMutex) {
-			mainBuilder.CreateCall(M.getFunction("sem_destroy"), ArrayRef<Value*>(retMutex));
+			// mainBuilder.CreateCall(M.getFunction("sem_destroy"), ArrayRef<Value*>(retMutex));
 		}
 		if (retVal) {
 			mainBuilder.CreateRet(mainBuilder.CreateLoad(retVal));
