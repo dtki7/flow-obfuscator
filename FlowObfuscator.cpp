@@ -549,6 +549,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 	// transform each function
 	auto functions = getAllFunctions(M, true);
 	for (auto function : functions) {
+		if (function->getName() != "main") continue;  // DEBUG
 		dbgs() << "function: " << function->getName() << "\n";
 
 		if (checkRecursive(function)) {
