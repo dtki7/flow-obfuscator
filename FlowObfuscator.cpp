@@ -434,9 +434,9 @@ void handleInvokeSync(Module &M, BasicBlock *pred, BasicBlock *syncBlock, Invoke
 
 // create the release block for the given basic block
 void setReleasePoints(Module &M, Function *function, BasicBlock *basicBlock, GlobalVariable *sem, IRBuilder<> &builder) {
-	std::vector<BasicBlock*> preds;
+	std::set<BasicBlock*> preds;
 	for (auto pred : predecessors(basicBlock)) {
-		preds.push_back(pred);
+		preds.insert(pred);
 	}
 
 	for (auto pred : preds) {
@@ -452,9 +452,8 @@ void setReleasePoints(Module &M, Function *function, BasicBlock *basicBlock, Glo
 		auto lastInstr = &*--pred->end();
 
 		// branch
-		if (isa<BranchInst>(lastInstr)) {
-			auto brInstr = cast<BranchInst>(lastInstr);
-			brInstr->replaceSuccessorWith(basicBlock, syncBlock);
+		if (isa<BranchInst>(lastInstr) || isa<SwitchInst>(lastInstr)) {
+			lastInstr->replaceSuccessorWith(basicBlock, syncBlock);
 			continue;
 		}
 
@@ -491,7 +490,7 @@ Function *createNewFunc(Module &M, Function *function, BasicBlock *basicBlock) {
 		newFunc->setPersonalityFn(function->getPersonalityFn());
 	}
 	// move successors
-	if (isa<BranchInst>(instr) || isa<InvokeInst>(instr)) {
+	if (isa<BranchInst>(instr) || isa<InvokeInst>(instr) || isa<SwitchInst>(instr)) {
 		for (unsigned i = 0; i < instr->getNumSuccessors(); i++) {
 			instr->getSuccessor(i)->moveAfter(basicBlock);
 		}
