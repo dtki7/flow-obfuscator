@@ -38,6 +38,7 @@ bool checkIfLoop(BasicBlock* block, BasicBlock* start = nullptr, int n = 10) {
 
 	std::vector<BasicBlock*> preds;
 	for (auto p : predecessors(block)) {
+		return true;  // workaround with big files
 		preds.push_back(p);
 	}
 	for (auto p : preds) {
@@ -600,7 +601,8 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 
 		// relocation
 		std::vector<Value*> thrds;
-		for (auto basicBlock : basicBlocks) {
+		for (auto it = basicBlocks.rbegin(); it != basicBlocks.rend(); it++) {
+			auto basicBlock = *it;
 			auto newFunc = createNewFunc(M, function, basicBlock);
 			thrds.push_back(createThread(M, newFunc, mainBuilder));
 
