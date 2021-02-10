@@ -30,6 +30,32 @@ bool contains(std::vector<T> v, T o) {
 	return std::find(v.begin(), v.end(), o) != v.end();
 }
 
+// type and function names depending on target
+#ifdef __linux__
+constexpr const char *ATTR_TYPE = "union.pthread_attr_t";
+constexpr const char *CREATE_THREAD_FUNC = "pthread_create";
+constexpr const char *THREAD_DETACH_FUNC = "pthread_detach";
+constexpr const char *KILL_THREAD_FUNC = "pthread_cancel";
+constexpr const char *JOIN_THREAD_FUNC = "pthread_join";
+constexpr const char *SEM_TYPE = "union.sem_t";
+constexpr const char *CREATE_SEM_FUNC = "sem_init";
+constexpr const char *UNLOCK_SEM_FUNC = "sem_post";
+constexpr const char *LOCK_SEM_FUNC = "sem_wait";
+constexpr const char *FREE_SEM_FUNC = "sem_destroy";
+#elif _WIN32
+constexpr const char *ATTR_TYPE = "struct._SECURITY_ATTRIBUTES";
+constexpr const char *CREATE_THREAD_FUNC = "CreateThread";
+constexpr const char *THREAD_DETACH_FUNC = "CloseHandle";
+constexpr const char *KILL_THREAD_FUNC = "TerminateThread";
+constexpr const char *JOIN_THREAD_FUNC = "WaitForSingleObject";
+constexpr const char *CREATE_SEM_FUNC = "CreateSemaphoreA";
+constexpr const char *UNLOCK_SEM_FUNC = "ReleaseSemaphore";
+constexpr const char *LOCK_SEM_FUNC = "WaitForSingleObject";
+constexpr const char *FREE_SEM_FUNC = "CloseHandle";
+#endif
+
+// ############################################################################
+
 // check if basic block is in a loop
 bool checkIfLoop(BasicBlock* block, BasicBlock* start = nullptr, int n = 10) {
 	if (--n < 0) return false;  // depth
@@ -165,28 +191,60 @@ void createStore(Instruction *instr, GlobalVariable * globVar, IRBuilder<> &buil
 // initialize semaphore
 void initSem(Module &M, GlobalVariable *sem, IRBuilder<> &builder) {
 	args.clear();
+#ifdef __linux__
 	args.push_back(sem);  // semaphore
 	args.push_back(zero);  // pshared
 	args.push_back(zero);  // initial value
-	builder.CreateCall(M.getFunction("sem_init"), args);
+#elif _WIN32
+	args.push_back(ConstantPointerNull::get(PointerType::get(M.getTypeByName(ATTR_TYPE), 0)));  // attrs
+	args.push_back(zero);  // initial value
+	args.push_back(zero);  // maximum value
+	args.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(M.getContext())));  // name
+#endif
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+	auto call = builder.CreateCall(M.getFunction(CREATE_SEM_FUNC), args);
+#pragma GCC diagnostic pop
+#ifdef _WIN32
+	builder.CreateStore(call, sem)
+#endif
 }
 
 // create thread and detach if thread restarted in loop
 Value *createThread(Module& M, Function* callee, IRBuilder<> &builder, Value *thrd = nullptr) {
 	if (!thrd) {
+#ifdef __linux__
 		thrd = createGlobal(M, Type::getInt64Ty(M.getContext()));
+#elif _WIN32
+		thrd = createGlobal(M, Type::getInt8PtrTy(M.getContext()));
+#endif
 	} else {
 		args.clear();
 		args.push_back(builder.CreateLoad(thrd));  // thread
-		builder.CreateCall(M.getFunction("pthread_detach"), args);
+		builder.CreateCall(M.getFunction(THREAD_DETACH_FUNC), args);
 	}
 
 	args.clear();
+#ifdef __linux
 	args.push_back(thrd);  // pointer to thread
-	args.push_back(ConstantPointerNull::get(PointerType::get(M.getTypeByName("union.pthread_attr_t"), 0)));  // attrs
+#endif
+	args.push_back(ConstantPointerNull::get(PointerType::get(M.getTypeByName(ATTR_TYPE), 0)));  // attrs
+#ifdef _WIN32
+	args.push_back(zero);  // stack size
+#endif
 	args.push_back(builder.CreateBitCast(callee, genericFuncType));  // function address
 	args.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(M.getContext())));  // args
-	builder.CreateCall(M.getFunction("pthread_create"), args);
+#ifdef _WIN32
+	args.push_back(zero);  // createion flags
+	args.push_back(ConstantPointerNull::get(Type::getInt32PtrTy(M.getContext())));  // thread id
+#endif
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+	auto call = builder.CreateCall(M.getFunction(CREATE_THREAD_FUNC), args);
+#pragma GCC diagnostic pop
+#ifdef _WIN32
+	builder.CreateStore(call, thrd);
+#endif
 
 	return thrd;
 }
@@ -195,61 +253,114 @@ Value *createThread(Module& M, Function* callee, IRBuilder<> &builder, Value *th
 void createEnvironment(Module &M) {
 	auto &ctx = M.getContext();
 
+#ifdef __linux__
 	// type: union.pthread_attr_t
 	types.clear();
 	types.push_back(Type::getInt64Ty(ctx));
 	types.push_back(ArrayType::get(Type::getInt8Ty(ctx), 48));
-	StructType::create(ctx, types, "union.pthread_attr_t");
+	StructType::create(ctx, types, ATTR_TYPE);
 
 	// pthread_create
 	types.clear();
 	types.push_back(Type::getInt64PtrTy(ctx));
-	types.push_back(PointerType::get(M.getTypeByName("union.pthread_attr_t"), 0));
+	types.push_back(PointerType::get(M.getTypeByName(ATTR_TYPE), 0));
 	types.push_back(genericFuncType);
 	types.push_back(Type::getInt8PtrTy(ctx));
 	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
-	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "pthread_create", M)->setDSOLocal(true);
+	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, CREATE_THREAD_FUNC, M)->setDSOLocal(true);
 
 	// pthread_detach
 	types.clear();
 	types.push_back(Type::getInt64Ty(ctx));
 	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
-	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "pthread_detach", M)->setDSOLocal(true);
+	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, THREAD_DETACH_FUNC, M)->setDSOLocal(true);
 
 	// function: pthread_cancel
 	types.clear();
 	types.push_back(Type::getInt64Ty(ctx));
 	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
-	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "pthread_cancel", M)->setDSOLocal(true);
+	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, KILL_THREAD_FUNC, M)->setDSOLocal(true);
 
 	// function: pthread_join
 	types.clear();
 	types.push_back(Type::getInt64Ty(ctx));
 	types.push_back(PointerType::get(Type::getInt8PtrTy(ctx), 0));
 	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
-	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "pthread_join", M)->setDSOLocal(true);
+	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, JOIN_THREAD_FUNC, M)->setDSOLocal(true);
 
 	// type: union.sem_t
 	types.clear();
 	types.push_back(Type::getInt64Ty(ctx));
 	types.push_back(ArrayType::get(Type::getInt8Ty(ctx), 24));
-	StructType::create(ctx, types, "union.sem_t");
+	StructType::create(ctx, types, SEM_TYPE);
 
 	// function: sem_init
 	types.clear();
-	types.push_back(PointerType::get(M.getTypeByName("union.sem_t"), 0));
+	types.push_back(PointerType::get(M.getTypeByName(SEM_TYPE), 0));
 	types.push_back(Type::getInt32Ty(ctx));
 	types.push_back(Type::getInt32Ty(ctx));
 	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
-	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "sem_init", M)->setDSOLocal(true);
+	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, CREATE_SEM_FUNC, M)->setDSOLocal(true);
 
 	// functions: sem_post, sem_wait, sem_destroy
 	types.clear();
-	types.push_back(PointerType::get(M.getTypeByName("union.sem_t"), 0));
+	types.push_back(PointerType::get(M.getTypeByName(SEM_TYPE), 0));
 	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
-	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "sem_post", M)->setDSOLocal(true);
-	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "sem_wait", M)->setDSOLocal(true);
-	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, "sem_destroy", M)->setDSOLocal(true);
+	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, UNLOCK_SEM_FUNC, M)->setDSOLocal(true);
+	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, LOCK_SEM_FUNC, M)->setDSOLocal(true);
+	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, FREE_SEM_FUNC, M)->setDSOLocal(true);
+#elif _WIN32
+	// type: SECURITY_ATTRIBUTES
+	types.clear();
+	types.push_back(Type::getInt32Ty(ctx));
+	types.push_back(Type::getInt8PtrTy(ctx));
+	types.push_back(Type::getInt32Ty(ctx));
+	StructType::create(ctx, types, ATTR_TYPE);
+
+	// function: CreateThread
+	types.clear();
+	types.push_back(M.getTypeByName(ATTR_TYPE));
+	types.push_back(Type::getInt64PtrTy(ctx));
+	types.push_back(genericFuncType);
+	types.push_back(Type::getInt8PtrTy(ctx));
+	types.push_back(Type::getInt32Ty(ctx));
+	types.push_back(Type::getInt32PtrTy(ctx));
+	funcType = FunctionType::get(Type::getInt8PtrTy(ctx), types, false);
+	Function::Create(funcType, GlobalValue::ExternalLinkage, CREATE_THREAD_FUNC, M)->setDLLStorageClass(GlobalValue::DLLImportStorageClass);
+
+	// function: CreateSemaphoreA
+	types.clear();
+	types.push_back(M.getTypeByName(ATTR_TYPE));
+	types.push_back(Type::getInt32Ty(ctx));
+	types.push_back(Type::getInt32Ty(ctx));
+	types.push_back(Type::getInt8PtrTy(ctx));
+	funcType = FunctionType::get(Type::getInt8PtrTy(ctx), types, false);
+	Function::Create(funcType, GlobalValue::ExternalLinkage, CREATE_SEM_FUNC, M)->setDLLStorageClass(GlobalValue::DLLImportStorageClass);
+
+	// function: ReleaseSemaphore
+	types.clear();
+	types.push_back(Type::getInt8PtrTy(ctx));
+	types.push_back(Type::getInt32Ty(ctx));
+	types.push_back(Type::getInt32PtrTy(ctx));
+	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
+	Function::Create(funcType, GlobalValue::ExternalLinkage, UNLOCK_SEM_FUNC, M)->setDLLStorageClass(GlobalValue::DLLImportStorageClass);
+
+	// function: CloseHandle
+	types.clear();
+	types.push_back(Type::getInt8PtrTy(ctx));
+	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
+	Function::Create(funcType, GlobalValue::ExternalLinkage, THREAD_DETACH_FUNC, M)->setDLLStorageClass(GlobalValue::DLLImportStorageClass);
+
+	// functions: WaitForSingleObject, TerminateThread
+	types.clear();
+	types.push_back(Type::getInt8PtrTy(ctx));
+	types.push_back(Type::getInt32Ty(ctx));
+	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
+	Function::Create(funcType, GlobalValue::ExternalLinkage, JOIN_THREAD_FUNC, M)->setDLLStorageClass(GlobalValue::DLLImportStorageClass);
+	Function::Create(funcType, GlobalValue::ExternalLinkage, KILL_THREAD_FUNC, M)->setDLLStorageClass(GlobalValue::DLLImportStorageClass);
+#else
+	assert(false && "Target not supported!");
+#endif
 }
 
 // return a set of all basic blocks that are in a loop, because they need
@@ -281,7 +392,11 @@ BasicBlock *handleArguments(Module &M, Function *function, IRBuilder<> &builder)
 ret_assets_t createReturnAssets(Module &M, Function *function) {
 	ret_assets_t retAssets;
 
-	retAssets.sem = createGlobal(M, M.getTypeByName("union.sem_t"));
+#ifdef __linux__
+	retAssets.sem = createGlobal(M, M.getTypeByName(SEM_TYPE));
+#elif _WIN32
+	retAssets.sem = createGlobal(M, Type::getInt8PtrTy(M.getContext()));
+#endif
 
 	auto type = function->getReturnType();
 	if (!type->isVoidTy()) {
@@ -383,7 +498,16 @@ void handleRetInstr(Module &M, ReturnInst *retInstr, const ret_assets_t &retAsse
 		builder.SetInsertPoint(builder.CreateRetVoid());
 		retInstr->eraseFromParent();
 	}
-	builder.CreateCall(M.getFunction("sem_post"), ArrayRef<Value*>(retAssets.sem));
+
+	args.clear();
+#ifdef __linux__
+	args.push_back(retAssets.sem);  // sem
+#elif _WIN32
+	args.push_back(builder.CreateLoad(retAssets.sem));  // sem
+	args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), 1));  // release count
+	args.push_back(ConstantPointerNull::get(Type::getInt32PtrTy(M.getContext())));  // prev count
+#endif
+	builder.CreateCall(M.getFunction(UNLOCK_SEM_FUNC), args);
 }
 
 // create the wait point for the given basic block
@@ -398,7 +522,14 @@ void setWaitPoint(Module &M, BasicBlock *basicBlock, GlobalVariable *sem, IRBuil
 	builder.SetInsertPoint(firstInstr);
 
 	// ... and insert the wait
-	builder.CreateCall(M.getFunction("sem_wait"), ArrayRef<Value*>(sem));
+	args.clear();
+#ifdef __linux__
+	args.push_back(sem);  // sem
+#elif _WIN32
+	args.push_back(builder.CreateLoad(sem));  // sem
+	args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), -1));  // milliseconds
+#endif
+	builder.CreateCall(M.getFunction(LOCK_SEM_FUNC), args);
 }
 
 // extends the sync blocks for invoke instrs and connects them
@@ -446,7 +577,15 @@ void setReleasePoints(Module &M, Function *function, BasicBlock *basicBlock, Glo
 		builder.SetInsertPoint(syncBlock);
 
 		// unlock the basic block
-		builder.CreateCall(M.getFunction("sem_post"), ArrayRef<Value*>(sem));
+		args.clear();
+#ifdef __linux__
+		args.push_back(sem);  // sem
+#elif _WIN32
+		args.push_back(builder.CreateLoad(sem));
+		args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), 1));  // release count
+		args.push_back(ConstantPointerNull::get(Type::getInt32PtrTy(M.getContext())));  // prev count
+#endif
+		builder.CreateCall(M.getFunction(UNLOCK_SEM_FUNC), args);
 		builder.CreateRetVoid();
 
 		// handle terminator
@@ -517,18 +656,30 @@ void cleanup(Module &M, std::vector<Value*> thrds, std::vector<GlobalVariable*> 
 		auto loadedThrd = builder.CreateLoad(thrd);
 
 		// terminate unused threads ...
-		builder.CreateCall(M.getFunction("pthread_cancel"), ArrayRef<Value*>(loadedThrd));
+		args.clear();
+		args.push_back(loadedThrd);  // thread
+#ifdef _WIN32
+		args.push_back(zero);  // exit code
+#endif
+		builder.CreateCall(M.getFunction(KILL_THREAD_FUNC), args);
 
 		// ... and join them to free resources
 		args.clear();
-		args.push_back(loadedThrd);  // threads
+		args.push_back(loadedThrd);  // thread
+#ifdef __linux
 		args.push_back(ConstantPointerNull::get(PointerType::get(Type::getInt8PtrTy(M.getContext()), 0)));  // return
-		builder.CreateCall(M.getFunction("pthread_join"), args);
+#elif _WIN32
+		args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), -1));  // milliseconds
+#endif
+		builder.CreateCall(M.getFunction(JOIN_THREAD_FUNC), args);
 	}
 
 	// clean sems
 	for (auto sem : sems) {
-		builder.CreateCall(M.getFunction("sem_destroy"), ArrayRef<Value*>(sem));
+#ifdef _WIN32
+		sem = builder.CreateLoad(sem);
+#endif
+		builder.CreateCall(M.getFunction(FREE_SEM_FUNC), ArrayRef<Value*>(sem));
 	}
 }
 
@@ -539,10 +690,15 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 
 	// initialization
 	zero = ConstantInt::get(Type::getInt32Ty(M.getContext()), 0);
+#ifdef __linux__
+	auto retType = Type::getInt8PtrTy(ctx);
+#else
+	auto retType = Type::getInt32PtrTy(ctx);
+#endif
 	types.clear();
 	types.push_back(Type::getInt8PtrTy(M.getContext()));
 	genericFuncType = PointerType::get(
-		FunctionType::get(Type::getInt8PtrTy(ctx), types, false), 0);
+		FunctionType::get(retType, types, false), 0);
 	createEnvironment(M);
 	IRBuilder<> builder(ctx);
 
@@ -592,7 +748,11 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			if (!basicBlock->hasNPredecessorsOrMore(1)) continue;
 
 			// create global for semaphore
-			sems.push_back(createGlobal(M, M.getTypeByName("union.sem_t")));
+#ifdef __linux__
+			sems.push_back(createGlobal(M, M.getTypeByName(SEM_TYPE)));
+#elif _WIN32
+			sems.push_back(createGlobal(M, Type::getInt8PtrTy(ctx)));
+#endif
 			// TODO (optional): only initiate semaphores once in the main func
 			initSem(M, sems.back(), mainBuilder);
 
@@ -614,7 +774,14 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			}
 		}
 		// create wait point for parent function
-		mainBuilder.CreateCall(M.getFunction("sem_wait"), ArrayRef<Value*>(retAssets.sem));
+		args.clear();
+#ifdef __linux__
+		args.push_back(retAssets.sem);  // sem
+#elif _WIN32
+		args.push_back(builder.CreateLoad(retAssets.sem));  // sem
+		args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), -1));  // milliseconds
+#endif
+		mainBuilder.CreateCall(M.getFunction(LOCK_SEM_FUNC), args);
 
 		// cleanup
 		sems.push_back(retAssets.sem);
