@@ -206,7 +206,7 @@ void initSem(Module &M, GlobalVariable *sem, IRBuilder<> &builder) {
 	auto call = builder.CreateCall(M.getFunction(CREATE_SEM_FUNC), args);
 #pragma GCC diagnostic pop
 #ifdef _WIN32
-	builder.CreateStore(call, sem)
+	builder.CreateStore(call, sem);
 #endif
 }
 
@@ -676,10 +676,13 @@ void cleanup(Module &M, std::vector<Value*> thrds, std::vector<GlobalVariable*> 
 
 	// clean sems
 	for (auto sem : sems) {
-#ifdef _WIN32
-		sem = builder.CreateLoad(sem);
+		args.clear();
+#ifdef __linux__
+		args.push_back(sem);
+#elif _WIN32
+		args.push_back(builder.CreateLoad(sem));
 #endif
-		builder.CreateCall(M.getFunction(FREE_SEM_FUNC), ArrayRef<Value*>(sem));
+		builder.CreateCall(M.getFunction(FREE_SEM_FUNC), args);
 	}
 }
 

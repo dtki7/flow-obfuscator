@@ -5,7 +5,8 @@ split not only basic blocks but also more than n instructions
 find hot spots
 test spin
 threads limit
-problem detached zombies
+
+cmake .. -G Ninja -DCMAKE_PREFIX_PATH=C:\Users\user\Downloads\win-devel\llvm-project-llvmorg-11.0.0/build -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=MinSizeRel
 
 normal:
 **** PI Computation ( digit: 10000000 )
