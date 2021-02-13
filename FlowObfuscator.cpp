@@ -229,7 +229,7 @@ Value *createThread(Module& M, Function* callee, IRBuilder<> &builder, Value *th
 #endif
 	args.push_back(ConstantPointerNull::get(PointerType::get(M.getTypeByName(ATTR_TYPE), 0)));  // attrs
 #ifdef _WIN32
-	args.push_back(zero);  // stack size
+	args.push_back(ConstantInt::get(Type::getInt64Ty(M.getContext()), 0));  // stack size
 #endif
 	args.push_back(builder.CreateBitCast(callee, genericFuncType));  // function address
 	args.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(M.getContext())));  // args
@@ -318,8 +318,8 @@ void createEnvironment(Module &M) {
 
 	// function: CreateThread
 	types.clear();
-	types.push_back(M.getTypeByName(ATTR_TYPE));
-	types.push_back(Type::getInt64PtrTy(ctx));
+	types.push_back(PointerType::get(M.getTypeByName(ATTR_TYPE), 0));
+	types.push_back(Type::getInt64Ty(ctx));
 	types.push_back(genericFuncType);
 	types.push_back(Type::getInt8PtrTy(ctx));
 	types.push_back(Type::getInt32Ty(ctx));
@@ -329,7 +329,7 @@ void createEnvironment(Module &M) {
 
 	// function: CreateSemaphoreA
 	types.clear();
-	types.push_back(M.getTypeByName(ATTR_TYPE));
+	types.push_back(PointerType::get(M.getTypeByName(ATTR_TYPE), 0));
 	types.push_back(Type::getInt32Ty(ctx));
 	types.push_back(Type::getInt32Ty(ctx));
 	types.push_back(Type::getInt8PtrTy(ctx));
@@ -788,7 +788,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 #ifdef __linux__
 		args.push_back(retAssets.sem);  // sem
 #elif _WIN32
-		args.push_back(builder.CreateLoad(retAssets.sem));  // sem
+		args.push_back(mainBuilder.CreateLoad(retAssets.sem));  // sem
 		args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), -1));  // milliseconds
 #endif
 		mainBuilder.CreateCall(M.getFunction(LOCK_SEM_FUNC), args);
@@ -835,7 +835,7 @@ namespace {
     FlowObfuscation() : ModulePass(ID) {}
 
     bool runOnModule(Module &M) override {
-		ModuleAnalysisManager *AM;
+		ModuleAnalysisManager *AM = nullptr;
 		FlowObfuscatorPass().run(M, *AM);
 		return true;
     }
