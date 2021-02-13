@@ -1,6 +1,5 @@
-#include "FlowObfuscator.h"
-
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/PassManager.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 
@@ -688,6 +687,14 @@ void cleanup(Module &M, std::vector<Value*> thrds, std::vector<GlobalVariable*> 
 
 // ############################################################################
 
+namespace llvm {
+class FlowObfuscatorPass : public PassInfoMixin<FlowObfuscatorPass> {
+public:
+  PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
+};
+
+} // namespace llvm
+
 PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) {
 	auto &ctx = M.getContext();
 
@@ -801,6 +808,8 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
     return PreservedAnalyses::none();
 }
 
+
+// llvm registration
 extern "C" ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK
 llvmGetPassPluginInfo() {
 	return {
@@ -817,3 +826,22 @@ llvmGetPassPluginInfo() {
 		}
 	};
 }
+
+// needed for sh**y windows
+#ifdef _WIN32
+namespace {
+  struct FlowObfuscation : public ModulePass {
+    static char ID; // Pass identification, replacement for typeid
+    FlowObfuscation() : ModulePass(ID) {}
+
+    bool runOnModule(Module &M) override {
+		ModuleAnalysisManager *AM;
+		FlowObfuscatorPass().run(M, *AM);
+		return true;
+    }
+  };
+}
+
+char FlowObfuscation::ID = 0;
+static RegisterPass<FlowObfuscation> X("flow-obfuscator", "Flow Obfuscation Pass");
+#endif
