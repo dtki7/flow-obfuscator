@@ -23,6 +23,7 @@ std::vector<Type*> types;  // function argument types
 Value *zero;  // ConstantInt 0
 PointerType *genericFuncType;
 FunctionType *funcType;  // funcion type
+Function * func;
 
 template<class T>
 bool contains(std::vector<T> v, T o) {
@@ -52,6 +53,8 @@ constexpr const char *UNLOCK_SEM_FUNC = "ReleaseSemaphore";
 constexpr const char *LOCK_SEM_FUNC = "WaitForSingleObject";
 constexpr const char *FREE_SEM_FUNC = "CloseHandle";
 #endif
+
+bool M32 = false;
 
 // ############################################################################
 
@@ -197,7 +200,7 @@ void initSem(Module &M, GlobalVariable *sem, IRBuilder<> &builder) {
 #elif _WIN32
 	args.push_back(ConstantPointerNull::get(PointerType::get(M.getTypeByName(ATTR_TYPE), 0)));  // attrs
 	args.push_back(zero);  // initial value
-	args.push_back(zero);  // maximum value
+	args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), 1));  // maximum value
 	args.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(M.getContext())));  // name
 #endif
 #pragma GCC diagnostic push
@@ -229,7 +232,9 @@ Value *createThread(Module& M, Function* callee, IRBuilder<> &builder, Value *th
 #endif
 	args.push_back(ConstantPointerNull::get(PointerType::get(M.getTypeByName(ATTR_TYPE), 0)));  // attrs
 #ifdef _WIN32
-	args.push_back(ConstantInt::get(Type::getInt64Ty(M.getContext()), 0));  // stack size
+	// stack size
+	if (M32) args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), 0));
+	else args.push_back(ConstantInt::get(Type::getInt64Ty(M.getContext()), 0));
 #endif
 	args.push_back(builder.CreateBitCast(callee, genericFuncType));  // function address
 	args.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(M.getContext())));  // args
@@ -319,13 +324,16 @@ void createEnvironment(Module &M) {
 	// function: CreateThread
 	types.clear();
 	types.push_back(PointerType::get(M.getTypeByName(ATTR_TYPE), 0));
-	types.push_back(Type::getInt64Ty(ctx));
+	if (M32) types.push_back(Type::getInt32Ty(ctx));
+	else types.push_back(Type::getInt64Ty(ctx));
 	types.push_back(genericFuncType);
 	types.push_back(Type::getInt8PtrTy(ctx));
 	types.push_back(Type::getInt32Ty(ctx));
 	types.push_back(Type::getInt32PtrTy(ctx));
 	funcType = FunctionType::get(Type::getInt8PtrTy(ctx), types, false);
-	Function::Create(funcType, GlobalValue::ExternalLinkage, CREATE_THREAD_FUNC, M)->setDLLStorageClass(GlobalValue::DLLImportStorageClass);
+	func = Function::Create(funcType, GlobalValue::ExternalLinkage, CREATE_THREAD_FUNC, M);
+	func->setDLLStorageClass(GlobalValue::DLLImportStorageClass);
+	if (M32) func->setCallingConv(CallingConv::X86_StdCall);
 
 	// function: CreateSemaphoreA
 	types.clear();
@@ -334,7 +342,9 @@ void createEnvironment(Module &M) {
 	types.push_back(Type::getInt32Ty(ctx));
 	types.push_back(Type::getInt8PtrTy(ctx));
 	funcType = FunctionType::get(Type::getInt8PtrTy(ctx), types, false);
-	Function::Create(funcType, GlobalValue::ExternalLinkage, CREATE_SEM_FUNC, M)->setDLLStorageClass(GlobalValue::DLLImportStorageClass);
+	func = Function::Create(funcType, GlobalValue::ExternalLinkage, CREATE_SEM_FUNC, M);
+	func->setDLLStorageClass(GlobalValue::DLLImportStorageClass);
+	if (M32) func->setCallingConv(CallingConv::X86_StdCall);
 
 	// function: ReleaseSemaphore
 	types.clear();
@@ -342,21 +352,29 @@ void createEnvironment(Module &M) {
 	types.push_back(Type::getInt32Ty(ctx));
 	types.push_back(Type::getInt32PtrTy(ctx));
 	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
-	Function::Create(funcType, GlobalValue::ExternalLinkage, UNLOCK_SEM_FUNC, M)->setDLLStorageClass(GlobalValue::DLLImportStorageClass);
+	func = Function::Create(funcType, GlobalValue::ExternalLinkage, UNLOCK_SEM_FUNC, M);
+	func->setDLLStorageClass(GlobalValue::DLLImportStorageClass);
+	if (M32) func->setCallingConv(CallingConv::X86_StdCall);
 
 	// function: CloseHandle
 	types.clear();
 	types.push_back(Type::getInt8PtrTy(ctx));
 	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
-	Function::Create(funcType, GlobalValue::ExternalLinkage, THREAD_DETACH_FUNC, M)->setDLLStorageClass(GlobalValue::DLLImportStorageClass);
+	func = Function::Create(funcType, GlobalValue::ExternalLinkage, THREAD_DETACH_FUNC, M);
+	func->setDLLStorageClass(GlobalValue::DLLImportStorageClass);
+	if (M32) func->setCallingConv(CallingConv::X86_StdCall);
 
 	// functions: WaitForSingleObject, TerminateThread
 	types.clear();
 	types.push_back(Type::getInt8PtrTy(ctx));
 	types.push_back(Type::getInt32Ty(ctx));
 	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
-	Function::Create(funcType, GlobalValue::ExternalLinkage, JOIN_THREAD_FUNC, M)->setDLLStorageClass(GlobalValue::DLLImportStorageClass);
-	Function::Create(funcType, GlobalValue::ExternalLinkage, KILL_THREAD_FUNC, M)->setDLLStorageClass(GlobalValue::DLLImportStorageClass);
+	func = Function::Create(funcType, GlobalValue::ExternalLinkage, JOIN_THREAD_FUNC, M);
+	func->setDLLStorageClass(GlobalValue::DLLImportStorageClass);
+	if (M32) func->setCallingConv(CallingConv::X86_StdCall);
+	func = Function::Create(funcType, GlobalValue::ExternalLinkage, KILL_THREAD_FUNC, M);
+	func->setDLLStorageClass(GlobalValue::DLLImportStorageClass);
+	if (M32) func->setCallingConv(CallingConv::X86_StdCall);
 #else
 	assert(false && "Target not supported!");
 #endif
@@ -696,6 +714,10 @@ public:
 } // namespace llvm
 
 PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) {
+	if (M.getTargetTriple().find("i386") == 0) {
+		M32 = true;
+	}
+
 	auto &ctx = M.getContext();
 
 	// initialization
