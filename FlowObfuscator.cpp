@@ -735,9 +735,9 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 	IRBuilder<> builder(ctx);
 
 	// transform each function
-	auto functions = getAllFunctions(M, true);
+	auto functions = getAllFunctions(M, false);
 	for (auto function : functions) {
-		if (function->getName() != "main") continue;  // DEBUG
+		// if (function->getName() != "main") continue;  // DEBUG
 		dbgs() << "function: " << function->getName() << "\n";
 
 		if (checkRecursive(function)) {
