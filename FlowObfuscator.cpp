@@ -439,10 +439,8 @@ void handlePHINodes(Module &M, BasicBlock *basicBlock, IRBuilder<> &builder) {
 			if (isa<Instruction>(incVal)) {
 				auto instr = cast<Instruction>(incVal);
 				builder.SetInsertPoint(instr->getNextNode());
-			} else if (isa<Constant>(incVal)) {
-				builder.SetInsertPoint(&*--phi->getIncomingBlock(i)->end());
 			} else {
-				assert(false && "unsupported case");
+				builder.SetInsertPoint(&*--phi->getIncomingBlock(i)->end());
 			}
 			builder.CreateStore(incVal, globVar);
 		}
@@ -747,7 +745,12 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		auto basicBlocks = getAllBasicBlocks(function);
 		auto loopBlocks = getLoopBlocks(basicBlocks);  // necessary before manipulation
 
-		// transform arguments and return values
+		// prepare the module (data flow)
+		for (auto basicBlock : basicBlocks) {
+			handlePHINodes(M, basicBlock, builder);
+		}
+
+		// transform arguments and return values (data flow)
 		auto argBlock = handleArguments(M, function, builder);
 		auto retAssets = createReturnAssets(M, function);
 
@@ -761,9 +764,6 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		initSem(M, retAssets.sem, mainBuilder);
 
 		// data flow
-		for (auto basicBlock : basicBlocks) {
-			handlePHINodes(M, basicBlock, builder);
-		}
 		for (auto basicBlock : basicBlocks) {
 			makeGlobal(M, basicBlock, builder);
 
