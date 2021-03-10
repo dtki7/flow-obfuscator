@@ -432,25 +432,22 @@ void handlePHINodes(Module &M, BasicBlock *basicBlock, IRBuilder<> &builder) {
 		auto phi = cast<PHINode>(instr);
 
 		auto globVar = createGlobal(M, phi->getType());
+		builder.SetInsertPoint(phi);
+		auto newPHI = builder.CreateLoad(globVar);
 		for (unsigned i = 0; i < phi->getNumIncomingValues(); i++) {
 			auto incVal = phi->getIncomingValue(i);
-
 			if (isa<Instruction>(incVal)) {
-				// results of instructions have to be stored and loaded
-				auto incInstr = cast<Instruction>(incVal);
-				createLoads(phi, globVar, builder);
-				createStore(incInstr, globVar, builder);
+				auto instr = cast<Instruction>(incVal);
+				builder.SetInsertPoint(instr->getNextNode());
 			} else if (isa<Constant>(incVal)) {
-				// otherwise we have more than one constant and have to createStore
-				assert(globVar->getInitializer()->isZeroValue());
-
-				globVar->setInitializer(cast<Constant>(incVal));
+				builder.SetInsertPoint(&*--phi->getIncomingBlock(i)->end());
 			} else {
-				assert(false);
+				assert(false && "unsupported case");
 			}
+			builder.CreateStore(incVal, globVar);
 		}
 
-		assert(phi->isSafeToRemove());
+		phi->replaceAllUsesWith(newPHI);
 		phi->eraseFromParent();
 	}
 }
@@ -766,6 +763,8 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		// data flow
 		for (auto basicBlock : basicBlocks) {
 			handlePHINodes(M, basicBlock, builder);
+		}
+		for (auto basicBlock : basicBlocks) {
 			makeGlobal(M, basicBlock, builder);
 
 			auto lastInstr = &*--basicBlock->end();
