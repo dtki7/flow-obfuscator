@@ -66,7 +66,6 @@ bool checkIfLoop(BasicBlock* block, BasicBlock* start = nullptr, int n = 10) {
 
 	std::vector<BasicBlock*> preds;
 	for (auto p : predecessors(block)) {
-		// return true;  // workaround with big files
 		preds.push_back(p);
 	}
 	for (auto p : preds) {
@@ -732,7 +731,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 	// transform each function
 	auto functions = getAllFunctions(M, false);
 	for (auto function : functions) {
-		// if (function->getName() != "BZ2_bzWrite") continue;  // DEBUG
+		// if (function->getName() != "main") continue;  // DEBUG
 		dbgs() << "function: " << function->getName() << "\n";
 
 		if (checkRecursive(function)) {
