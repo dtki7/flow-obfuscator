@@ -59,20 +59,27 @@ bool M32 = false;
 // ############################################################################
 
 // check if basic block is in a loop
-bool checkIfLoop(BasicBlock* block, BasicBlock* start = nullptr, int n = 10) {
-	if (--n < 0) return false;  // depth
-	if (start == block) return true;
-	if (!start) start = block;
+bool checkIfLoop(BasicBlock* block, std::vector<BasicBlock*>& visited, const std::map<BasicBlock*, bool>& loopMap) {
+	if (visited.size() != 0 && visited.front() == block) {
+		return true;
+	} else if (std::find(visited.begin(), visited.end(), block) != visited.end()) {
+		return false;
+	} else if (loopMap.find(block) != loopMap.end() && !loopMap.at(block)) {
+		return false;
+	}
+	visited.push_back(block);
 
 	std::vector<BasicBlock*> preds;
 	for (auto p : predecessors(block)) {
 		preds.push_back(p);
 	}
 	for (auto p : preds) {
-		if (checkIfLoop(p, start, n)) {
+		if (checkIfLoop(p, visited, loopMap)) {
 			return true;
 		}
 	}
+
+	visited.pop_back();
 	return false;
 }
 
@@ -382,13 +389,28 @@ void createEnvironment(Module &M) {
 // return a set of all basic blocks that are in a loop, because they need
 // to be restarted after execution
 std::set<BasicBlock*> getLoopBlocks(std::vector<BasicBlock*> basicBlocks) {
-	std::set<BasicBlock*> blocks;
+	std::map<BasicBlock*, bool> loopMap;
+
 	for (auto basicBlock : basicBlocks) {
-		if (checkIfLoop(basicBlock)) {
-			blocks.insert(basicBlock);
+		if (loopMap.find(basicBlock) != loopMap.end()) continue;
+
+		std::vector<BasicBlock*> visited;
+		if (checkIfLoop(basicBlock, visited, loopMap)) {
+			for (auto block : visited) {
+				loopMap[block] = true;
+			}
+		} else {
+			loopMap[basicBlock] = false;
 		}
 	}
-	return blocks;
+
+	std::set<BasicBlock*> ret;
+	for (auto key : loopMap) {
+		if (key.second)
+			ret.insert(key.first);
+	}
+
+	return ret;
 }
 
 // create basic block to store arguments and substitute use of arguments with loaders
