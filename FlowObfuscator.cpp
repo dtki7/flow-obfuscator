@@ -760,6 +760,10 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 			errs() << "warning: recursive functions not supported! skipping "
 				<< function->getName() << "\n";
 			continue;
+		} else if (function->isVarArg()) {
+			errs() << "warning: functions with variable arguments are not supported! skipping "
+				<< function->getName() << "\n";
+			continue;
 		}
 
 		// gather information
