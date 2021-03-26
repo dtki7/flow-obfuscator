@@ -6,6 +6,9 @@
 #include <set>
 #include <vector>
 
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+
 using namespace llvm;
 
 // forward delcarations - TODO (optional): create class in header
@@ -209,11 +212,9 @@ void initSem(Module &M, GlobalVariable *sem, IRBuilder<> &builder) {
 	args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), 1));  // maximum value
 	args.push_back(ConstantPointerNull::get(Type::getInt8PtrTy(M.getContext())));  // name
 #endif
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-variable"
 	auto call = builder.CreateCall(M.getFunction(CREATE_SEM_FUNC), args);
-#pragma GCC diagnostic pop
 #ifdef _WIN32
+	if (M32) call->setCallingConv(CallingConv::X86_StdCall);
 	builder.CreateStore(call, sem);
 #endif
 }
@@ -229,7 +230,10 @@ Value *createThread(Module& M, Function* callee, IRBuilder<> &builder, Value *th
 	} else {
 		args.clear();
 		args.push_back(builder.CreateLoad(thrd));  // thread
-		builder.CreateCall(M.getFunction(THREAD_DETACH_FUNC), args);
+		auto call = builder.CreateCall(M.getFunction(THREAD_DETACH_FUNC), args);
+#ifdef _WIN32
+		if (M32) call->setCallingConv(CallingConv::X86_StdCall);
+#endif
 	}
 
 	args.clear();
@@ -253,6 +257,7 @@ Value *createThread(Module& M, Function* callee, IRBuilder<> &builder, Value *th
 	auto call = builder.CreateCall(M.getFunction(CREATE_THREAD_FUNC), args);
 #pragma GCC diagnostic pop
 #ifdef _WIN32
+	if (M32) call->setCallingConv(CallingConv::X86_StdCall);
 	builder.CreateStore(call, thrd);
 #endif
 
@@ -540,7 +545,10 @@ void handleRetInstr(Module &M, ReturnInst *retInstr, const ret_assets_t &retAsse
 	args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), 1));  // release count
 	args.push_back(ConstantPointerNull::get(Type::getInt32PtrTy(M.getContext())));  // prev count
 #endif
-	builder.CreateCall(M.getFunction(UNLOCK_SEM_FUNC), args);
+	auto call = builder.CreateCall(M.getFunction(UNLOCK_SEM_FUNC), args);
+#ifdef _WIN32
+	if (M32) call->setCallingConv(CallingConv::X86_StdCall);
+#endif
 }
 
 // create the wait point for the given basic block
@@ -562,7 +570,10 @@ void setWaitPoint(Module &M, BasicBlock *basicBlock, GlobalVariable *sem, IRBuil
 	args.push_back(builder.CreateLoad(sem));  // sem
 	args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), -1));  // milliseconds
 #endif
-	builder.CreateCall(M.getFunction(LOCK_SEM_FUNC), args);
+	auto call = builder.CreateCall(M.getFunction(LOCK_SEM_FUNC), args);
+#ifdef _WIN32
+	if (M32) call->setCallingConv(CallingConv::X86_StdCall);
+#endif
 }
 
 // extends the sync blocks for invoke instrs and connects them
@@ -618,7 +629,10 @@ void setReleasePoints(Module &M, Function *function, BasicBlock *basicBlock, Glo
 		args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), 1));  // release count
 		args.push_back(ConstantPointerNull::get(Type::getInt32PtrTy(M.getContext())));  // prev count
 #endif
-		builder.CreateCall(M.getFunction(UNLOCK_SEM_FUNC), args);
+		auto call = builder.CreateCall(M.getFunction(UNLOCK_SEM_FUNC), args);
+#ifdef _WIN32
+		if (M32) call->setCallingConv(CallingConv::X86_StdCall);
+#endif
 		builder.CreateRetVoid();
 
 		// handle terminator
@@ -694,7 +708,10 @@ void cleanup(Module &M, std::vector<Value*> thrds, std::vector<GlobalVariable*> 
 #ifdef _WIN32
 		args.push_back(zero);  // exit code
 #endif
-		builder.CreateCall(M.getFunction(KILL_THREAD_FUNC), args);
+		auto call = builder.CreateCall(M.getFunction(KILL_THREAD_FUNC), args);
+#ifdef _WIN32
+		if (M32) call->setCallingConv(CallingConv::X86_StdCall);
+#endif
 
 		// ... and join them to free resources
 		args.clear();
@@ -704,7 +721,10 @@ void cleanup(Module &M, std::vector<Value*> thrds, std::vector<GlobalVariable*> 
 #elif _WIN32
 		args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), -1));  // milliseconds
 #endif
-		builder.CreateCall(M.getFunction(JOIN_THREAD_FUNC), args);
+		call = builder.CreateCall(M.getFunction(JOIN_THREAD_FUNC), args);
+#ifdef _WIN32
+		if (M32) call->setCallingConv(CallingConv::X86_StdCall);
+#endif
 	}
 
 	// clean sems
@@ -715,7 +735,10 @@ void cleanup(Module &M, std::vector<Value*> thrds, std::vector<GlobalVariable*> 
 #elif _WIN32
 		args.push_back(builder.CreateLoad(sem));
 #endif
-		builder.CreateCall(M.getFunction(FREE_SEM_FUNC), args);
+		auto call = builder.CreateCall(M.getFunction(FREE_SEM_FUNC), args);
+#ifdef _WIN32
+		if (M32) call->setCallingConv(CallingConv::X86_StdCall);
+#endif
 	}
 }
 
@@ -837,7 +860,10 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		args.push_back(mainBuilder.CreateLoad(retAssets.sem));  // sem
 		args.push_back(ConstantInt::get(Type::getInt32Ty(M.getContext()), -1));  // milliseconds
 #endif
-		mainBuilder.CreateCall(M.getFunction(LOCK_SEM_FUNC), args);
+		auto call = mainBuilder.CreateCall(M.getFunction(LOCK_SEM_FUNC), args);
+#ifdef _WIN32
+		if (M32) call->setCallingConv(CallingConv::X86_StdCall);
+#endif
 
 		// cleanup
 		sems.push_back(retAssets.sem);
