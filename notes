@@ -11,6 +11,13 @@ llvm: -DLLVM_EXPORT_SYMBOLS_FOR_PLUGINS=ON
 
 clang-cl main-opt.bc /link /ENTRY:WinMainCRTStartup /SUBSYSTEM:WINDOWS shell32.lib kernel32.lib user32.lib advapi32.lib vcruntime.lib libcmt.lib
 
+random engine:
+#include <algorithm>
+#include <random>
+std::random_device rd;
+std::default_random_engine rng(rd());
+std::shuffle(std::begin(basicBlocks), std::end(basicBlocks), rng);
+
 normal:
 **** PI Computation ( digit: 10000000 )
 FRACTION  : 1.092519306564063
