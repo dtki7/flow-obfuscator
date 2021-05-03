@@ -459,7 +459,6 @@ void handlePHINodes(Module &M, BasicBlock *basicBlock, IRBuilder<> &builder) {
 
 		auto globVar = createGlobal(M, phi->getType());
 		builder.SetInsertPoint(phi);
-		auto newPHI = builder.CreateLoad(globVar);
 		for (unsigned i = 0; i < phi->getNumIncomingValues(); i++) {
 			auto incVal = phi->getIncomingValue(i);
 			if (isa<Instruction>(incVal)) {
@@ -471,7 +470,7 @@ void handlePHINodes(Module &M, BasicBlock *basicBlock, IRBuilder<> &builder) {
 			builder.CreateStore(incVal, globVar);
 		}
 
-		phi->replaceAllUsesWith(newPHI);
+		createLoads(phi, globVar, builder);
 		phi->eraseFromParent();
 	}
 }
