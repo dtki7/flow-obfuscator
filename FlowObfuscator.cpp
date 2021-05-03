@@ -223,7 +223,8 @@ void initSem(Module &M, GlobalVariable *sem, IRBuilder<> &builder) {
 Value *createThread(Module& M, Function* callee, IRBuilder<> &builder, Value *thrd = nullptr) {
 	if (!thrd) {
 #ifdef __linux__
-		thrd = createGlobal(M, Type::getInt64Ty(M.getContext()));
+		if (M32) thrd = createGlobal(M, Type::getInt32Ty(M.getContext()));
+		else thrd = createGlobal(M, Type::getInt64Ty(M.getContext()));
 #elif _WIN32
 		thrd = createGlobal(M, Type::getInt8PtrTy(M.getContext()));
 #endif
@@ -271,13 +272,16 @@ void createEnvironment(Module &M) {
 #ifdef __linux__
 	// type: union.pthread_attr_t
 	types.clear();
-	types.push_back(Type::getInt64Ty(ctx));
-	types.push_back(ArrayType::get(Type::getInt8Ty(ctx), 48));
+	if (M32) types.push_back(Type::getInt32Ty(ctx));
+	else types.push_back(Type::getInt64Ty(ctx));
+	if (M32) types.push_back(ArrayType::get(Type::getInt8Ty(ctx), 32));
+	else types.push_back(ArrayType::get(Type::getInt8Ty(ctx), 48));
 	StructType::create(ctx, types, ATTR_TYPE);
 
 	// pthread_create
 	types.clear();
-	types.push_back(Type::getInt64PtrTy(ctx));
+	if (M32) types.push_back(Type::getInt32PtrTy(ctx));
+	else types.push_back(Type::getInt64PtrTy(ctx));
 	types.push_back(PointerType::get(M.getTypeByName(ATTR_TYPE), 0));
 	types.push_back(genericFuncType);
 	types.push_back(Type::getInt8PtrTy(ctx));
@@ -286,26 +290,30 @@ void createEnvironment(Module &M) {
 
 	// pthread_detach
 	types.clear();
-	types.push_back(Type::getInt64Ty(ctx));
+	if (M32) types.push_back(Type::getInt32Ty(ctx));
+	else types.push_back(Type::getInt64Ty(ctx));
 	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
 	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, THREAD_DETACH_FUNC, M)->setDSOLocal(true);
 
 	// function: pthread_cancel
 	types.clear();
-	types.push_back(Type::getInt64Ty(ctx));
+	if (M32) types.push_back(Type::getInt32Ty(ctx));
+	else types.push_back(Type::getInt64Ty(ctx));
 	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
 	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, KILL_THREAD_FUNC, M)->setDSOLocal(true);
 
 	// function: pthread_join
 	types.clear();
-	types.push_back(Type::getInt64Ty(ctx));
+	if (M32) types.push_back(Type::getInt32Ty(ctx));
+	else types.push_back(Type::getInt64Ty(ctx));
 	types.push_back(PointerType::get(Type::getInt8PtrTy(ctx), 0));
 	funcType = FunctionType::get(Type::getInt32Ty(ctx), types, false);
 	Function::Create(funcType, GlobalValue::ExternalWeakLinkage, JOIN_THREAD_FUNC, M)->setDSOLocal(true);
 
 	// type: union.sem_t
 	types.clear();
-	types.push_back(Type::getInt64Ty(ctx));
+	if (M32) types.push_back(Type::getInt64Ty(ctx));
+	else types.push_back(Type::getInt64Ty(ctx));
 	types.push_back(ArrayType::get(Type::getInt8Ty(ctx), 24));
 	StructType::create(ctx, types, SEM_TYPE);
 
