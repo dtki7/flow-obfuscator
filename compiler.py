@@ -15,7 +15,7 @@ targets = {
     "opt-main32": "clang-opt-main -m32"
 }
 
-PRE = "harness"
+PRE = ""
 
 def main():
     source_files = " ".join(sys.argv[1:])
