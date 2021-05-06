@@ -1,3 +1,8 @@
+llvm integration:
+- cmake: transforms / passes (link_components)
+- passregistry.def (module_pass) / passbuilder (#include)
+- backendutil (mpm)
+
 std::thread with a lot of handling (error, id, ...)
 clang++-10 -include pthread.h -femit-all-decls -emit-llvm -c example.cp
 gegenmaßnahmen
