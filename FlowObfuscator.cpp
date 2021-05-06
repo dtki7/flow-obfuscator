@@ -1,3 +1,5 @@
+#include "FlowObfuscator.h"
+
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Passes/PassBuilder.h"
@@ -750,14 +752,6 @@ void cleanup(Module &M, std::vector<Value*> thrds, std::vector<GlobalVariable*> 
 }
 
 // ############################################################################
-
-namespace llvm {
-class FlowObfuscatorPass : public PassInfoMixin<FlowObfuscatorPass> {
-public:
-  PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
-};
-
-} // namespace llvm
 
 PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) {
 	if (M.getTargetTriple().find("i386") == 0) {
