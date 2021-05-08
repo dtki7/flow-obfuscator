@@ -510,10 +510,11 @@ void makeGlobal(Module &M, BasicBlock *basicBlock, IRBuilder<> &builder) {
 		}
 
 		// check if uses only in this block, then we don't have to make it global
-		BasicBlock *nextBlock = basicBlock->getNextNode();
+		BasicBlock *nextBlock = &basicBlock->getParent()->getEntryBlock();
 		while(nextBlock && !handle) {
-			if (instr->isUsedInBasicBlock(nextBlock)) {
+			if (nextBlock != basicBlock && instr->isUsedInBasicBlock(nextBlock)) {
 				handle = true;
+				break;
 			}
 			nextBlock = nextBlock->getNextNode();
 		}
