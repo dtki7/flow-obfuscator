@@ -472,7 +472,7 @@ void handlePHINodes(Module &M, BasicBlock *basicBlock, IRBuilder<> &builder) {
 		for (unsigned i = 0; i < phi->getNumIncomingValues(); i++) {
 			auto incVal = phi->getIncomingValue(i);
 			if (isa<InvokeInst>(incVal)) {
-				builder.SetInsertPoint(cast<InvokeInst>(incVal)->getNormalDest());
+				builder.SetInsertPoint(&*--cast<InvokeInst>(incVal)->getNormalDest()->end());
 			} else if (isa<Instruction>(incVal)) {
 				auto instr = cast<Instruction>(incVal);
 				builder.SetInsertPoint(instr->getNextNode());
