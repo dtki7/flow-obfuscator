@@ -462,28 +462,40 @@ ret_assets_t createReturnAssets(Module &M, Function *function) {
 }
 
 // searches for phi nodes and substitues them with a global
-void handlePHINodes(Module &M, BasicBlock *basicBlock, IRBuilder<> &builder) {
-	for (auto instr : getAllInstructions(basicBlock)) {
-		if (!isa<PHINode>(instr)) continue;
-		auto phi = cast<PHINode>(instr);
+void handlePHINodes(Module &M, const std::vector<BasicBlock *> &basicBlocks, IRBuilder<> &builder) {
+	std::map<PHINode *, GlobalVariable *> phi2glob;
 
-		auto globVar = createGlobal(M, phi->getType());
-		builder.SetInsertPoint(phi);
-		for (unsigned i = 0; i < phi->getNumIncomingValues(); i++) {
-			auto incVal = phi->getIncomingValue(i);
-			if (isa<InvokeInst>(incVal)) {
-				builder.SetInsertPoint(&*--cast<InvokeInst>(incVal)->getNormalDest()->end());
-			} else if (isa<Instruction>(incVal)) {
-				auto instr = cast<Instruction>(incVal);
-				builder.SetInsertPoint(instr->getNextNode());
-			} else {
-				builder.SetInsertPoint(&*--phi->getIncomingBlock(i)->end());
+	for (auto basicBlock : basicBlocks) {
+		for (auto instr : getAllInstructions(basicBlock)) {
+			if (!isa<PHINode>(instr)) continue;
+			auto phi = cast<PHINode>(instr);
+			auto globVar = phi2glob.find(phi) != phi2glob.end() ?
+					phi2glob[phi] : createGlobal(M, phi->getType());
+
+			for (auto user : phi->users()) {
+				if (isa<PHINode>(user)) {
+					dbgs() << "attention: combined PHI nodes!\n";
+					phi2glob[cast<PHINode>(user)] = globVar;
+				}
 			}
-			builder.CreateStore(incVal, globVar);
-		}
 
-		createLoads(phi, globVar, builder);
-		phi->eraseFromParent();
+			builder.SetInsertPoint(phi);
+			for (unsigned i = 0; i < phi->getNumIncomingValues(); i++) {
+				auto incVal = phi->getIncomingValue(i);
+				if (isa<InvokeInst>(incVal)) {
+					builder.SetInsertPoint(&*--cast<InvokeInst>(incVal)->getNormalDest()->end());
+				} else if (isa<Instruction>(incVal)) {
+					auto instr = cast<Instruction>(incVal);
+					builder.SetInsertPoint(instr->getNextNode());
+				} else {
+					builder.SetInsertPoint(&*--phi->getIncomingBlock(i)->end());
+				}
+				builder.CreateStore(incVal, globVar);
+			}
+
+			createLoads(phi, globVar, builder);
+			phi->eraseFromParent();
+		}
 	}
 }
 
@@ -798,9 +810,7 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		auto loopBlocks = getLoopBlocks(basicBlocks);  // necessary before manipulation
 
 		// prepare the module (data flow)
-		for (auto basicBlock : basicBlocks) {
-			handlePHINodes(M, basicBlock, builder);
-		}
+		handlePHINodes(M, basicBlocks, builder);
 
 		// transform arguments and return values (data flow)
 		auto argBlock = handleArguments(M, function, builder);
