@@ -32,6 +32,8 @@ targets_pp = {
 PRE = ""
 
 def main():
+    global targets
+
     source_files = " ".join(sys.argv[1:])
 
     targets = targets
