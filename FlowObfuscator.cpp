@@ -458,34 +458,13 @@ ret_assets_t createReturnAssets(Module &M, Function *function) {
 	return retAssets;
 }
 
-void getCombinedPHIs(PHINode *phi, GlobalVariable *globVar, std::map<PHINode *, GlobalVariable *> &phi2glob) {
-	for (auto user : phi->users()) {
-		if (isa<PHINode>(user)) {
-			auto userPhi = cast<PHINode>(user);
-			if (phi2glob.find(userPhi) != phi2glob.end()) {
-				phi2glob[userPhi] = globVar;
-				getCombinedPHIs(userPhi, globVar, phi2glob);
-			}
-		}
-	}
-}
-
 // searches for phi nodes and substitues them with a global
 void handlePHINodes(Module &M, const std::vector<BasicBlock *> &basicBlocks, IRBuilder<> &builder) {
-	std::map<PHINode *, GlobalVariable *> phi2glob;
-
 	for (auto basicBlock : basicBlocks) {
 		for (auto instr : getAllInstructions(basicBlock)) {
 			if (!isa<PHINode>(instr)) continue;
 			auto phi = cast<PHINode>(instr);
-
-			GlobalVariable *globVar;
-			if (phi2glob.find(phi) != phi2glob.end()) {
-				globVar = phi2glob[phi];
-			} else {
-				globVar = createGlobal(M, phi->getType());
-				getCombinedPHIs(phi, globVar, phi2glob);
-			}
+			auto globVar = createGlobal(M, phi->getType());
 
 			builder.SetInsertPoint(phi);
 			for (unsigned i = 0; i < phi->getNumIncomingValues(); i++) {
