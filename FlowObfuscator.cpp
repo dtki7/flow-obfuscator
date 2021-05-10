@@ -84,7 +84,6 @@ bool checkIfLoop(BasicBlock* block, std::vector<BasicBlock*>& visited, const std
 		}
 	}
 
-	visited.pop_back();
 	return false;
 }
 
@@ -411,9 +410,7 @@ std::set<BasicBlock*> getLoopBlocks(std::vector<BasicBlock*> basicBlocks) {
 
 		std::vector<BasicBlock*> visited;
 		if (checkIfLoop(basicBlock, visited, loopMap)) {
-			for (auto block : visited) {
-				loopMap[block] = true;
-			}
+			loopMap[basicBlock] = true;
 		} else {
 			loopMap[basicBlock] = false;
 		}
@@ -461,6 +458,18 @@ ret_assets_t createReturnAssets(Module &M, Function *function) {
 	return retAssets;
 }
 
+void getCombinedPHIs(PHINode *phi, GlobalVariable *globVar, std::map<PHINode *, GlobalVariable *> &phi2glob) {
+	for (auto user : phi->users()) {
+		if (isa<PHINode>(user)) {
+			auto userPhi = cast<PHINode>(user);
+			if (phi2glob.find(userPhi) != phi2glob.end()) {
+				phi2glob[userPhi] = globVar;
+				getCombinedPHIs(userPhi, globVar, phi2glob);
+			}
+		}
+	}
+}
+
 // searches for phi nodes and substitues them with a global
 void handlePHINodes(Module &M, const std::vector<BasicBlock *> &basicBlocks, IRBuilder<> &builder) {
 	std::map<PHINode *, GlobalVariable *> phi2glob;
@@ -469,14 +478,13 @@ void handlePHINodes(Module &M, const std::vector<BasicBlock *> &basicBlocks, IRB
 		for (auto instr : getAllInstructions(basicBlock)) {
 			if (!isa<PHINode>(instr)) continue;
 			auto phi = cast<PHINode>(instr);
-			auto globVar = phi2glob.find(phi) != phi2glob.end() ?
-					phi2glob[phi] : createGlobal(M, phi->getType());
 
-			for (auto user : phi->users()) {
-				if (isa<PHINode>(user)) {
-					dbgs() << "attention: combined PHI nodes!\n";
-					phi2glob[cast<PHINode>(user)] = globVar;
-				}
+			GlobalVariable *globVar;
+			if (phi2glob.find(phi) != phi2glob.end()) {
+				globVar = phi2glob[phi];
+			} else {
+				globVar = createGlobal(M, phi->getType());
+				getCombinedPHIs(phi, globVar, phi2glob);
 			}
 
 			builder.SetInsertPoint(phi);
