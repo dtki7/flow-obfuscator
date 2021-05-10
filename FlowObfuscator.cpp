@@ -460,29 +460,44 @@ ret_assets_t createReturnAssets(Module &M, Function *function) {
 
 // searches for phi nodes and substitues them with a global
 void handlePHINodes(Module &M, const std::vector<BasicBlock *> &basicBlocks, IRBuilder<> &builder) {
+	std::map<PHINode *, GlobalVariable *> phi2glob;
+
 	for (auto basicBlock : basicBlocks) {
 		for (auto instr : getAllInstructions(basicBlock)) {
 			if (!isa<PHINode>(instr)) continue;
 			auto phi = cast<PHINode>(instr);
 			auto globVar = createGlobal(M, phi->getType());
-
-			builder.SetInsertPoint(phi);
-			for (unsigned i = 0; i < phi->getNumIncomingValues(); i++) {
-				auto incVal = phi->getIncomingValue(i);
-				if (isa<InvokeInst>(incVal)) {
-					builder.SetInsertPoint(&*--cast<InvokeInst>(incVal)->getNormalDest()->end());
-				} else if (isa<Instruction>(incVal)) {
-					auto instr = cast<Instruction>(incVal);
-					builder.SetInsertPoint(instr->getNextNode());
-				} else {
-					builder.SetInsertPoint(&*--phi->getIncomingBlock(i)->end());
-				}
-				builder.CreateStore(incVal, globVar);
-			}
-
-			createLoads(phi, globVar, builder);
-			phi->eraseFromParent();
+			phi2glob[phi] = globVar;
 		}
+	}
+	for (auto entry : phi2glob) {
+		auto phi = entry.first;
+
+		for (unsigned i = 0; i < phi->getNumIncomingValues(); i++) {
+			auto incVal = phi->getIncomingValue(i);
+			if (isa<PHINode>(incVal)) continue;
+			builder.SetInsertPoint(&*--phi->getIncomingBlock(i)->end());
+			builder.CreateStore(incVal, phi2glob[phi]);
+		}
+
+		std::vector<User*> users;
+		for (auto user : phi->users()) {
+			users.push_back(user);
+		}
+		for (auto user : users) {
+			if (isa<PHINode>(user)) {
+				auto userPhi = cast<PHINode>(user);
+				builder.SetInsertPoint(phi);
+				builder.CreateStore(builder.CreateLoad(phi2glob[phi]), phi2glob[userPhi]);
+			} else {
+				builder.SetInsertPoint(cast<Instruction>(user));
+				user->replaceUsesOfWith(phi, builder.CreateLoad(phi2glob[phi]));
+			}
+		}
+	}
+
+	for (auto entry : phi2glob) {
+		entry.first->eraseFromParent();
 	}
 }
 
