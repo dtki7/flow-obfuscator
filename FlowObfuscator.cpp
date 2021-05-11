@@ -473,7 +473,7 @@ void handlePHINodes(Module &M, const std::vector<BasicBlock *> &basicBlocks, IRB
 	for (auto entry : phi2glob) {
 		auto phi = entry.first;
 
-		GlobalVariable *useGlob = phi2glob[phi];
+		GlobalVariable *extraGlob = phi2glob[phi];
 		for (unsigned i = 0; i < phi->getNumIncomingValues(); i++) {
 			auto incVal = phi->getIncomingValue(i);
 			if (isa<PHINode>(incVal)) continue;
@@ -481,7 +481,7 @@ void handlePHINodes(Module &M, const std::vector<BasicBlock *> &basicBlocks, IRB
 
 			builder.SetInsertPoint(&*--incBlock->end());
 			if (phi->isUsedInBasicBlock(incBlock)) {
-				useGlob = createGlobal(M, phi->getType());
+				extraGlob = createGlobal(M, phi->getType());
 			}
 			builder.CreateStore(incVal, phi2glob[phi]);
 		}
@@ -499,11 +499,11 @@ void handlePHINodes(Module &M, const std::vector<BasicBlock *> &basicBlocks, IRB
 				builder.SetInsertPoint(cast<Instruction>(user));
 
 				LoadInst *loadedGlob = nullptr;
-				if (user->isUsedInBasicBlock(phi->getParent())) {
+				if (cast<Instruction>(user)->getParent() == phi->getParent()) {
 					loadedGlob = builder.CreateLoad(phi2glob[phi]);
-					builder.CreateStore(loadedGlob, useGlob);
+					builder.CreateStore(loadedGlob, extraGlob);
 				} else {
-					loadedGlob = builder.CreateLoad(useGlob);
+					loadedGlob = builder.CreateLoad(extraGlob);
 				}
 
 				user->replaceUsesOfWith(phi, loadedGlob);
