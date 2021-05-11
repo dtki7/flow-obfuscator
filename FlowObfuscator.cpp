@@ -480,7 +480,7 @@ void handlePHINodes(Module &M, const std::vector<BasicBlock *> &basicBlocks, IRB
 			auto incBlock = phi->getIncomingBlock(i);
 
 			builder.SetInsertPoint(&*--incBlock->end());
-			if (phi->isUsedInBasicBlock(incBlock)) {
+			if (phi->getParent() == incBlock) {
 				extraGlob = createGlobal(M, phi->getType());
 			}
 			builder.CreateStore(incVal, phi2glob[phi]);
