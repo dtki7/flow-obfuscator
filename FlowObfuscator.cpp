@@ -486,9 +486,9 @@ void handlePHINodes(Module &M, const std::vector<BasicBlock *> &basicBlocks, IRB
 		builder.SetInsertPoint(phi);
 		builder.CreateStore(builder.CreateLoad(phi2glob[phi]), extraGlob);
 
-		std::vector<User*> users;
+		std::set<User*> users;
 		for (auto user : phi->users()) {
-			users.push_back(user);
+			users.insert(user);
 		}
 		for (auto user : users) {
 			if (isa<PHINode>(user)) {
@@ -498,13 +498,11 @@ void handlePHINodes(Module &M, const std::vector<BasicBlock *> &basicBlocks, IRB
 				for (unsigned i = 0; i < userPhi->getNumIncomingValues(); i++) {
 					if (userPhi->getIncomingValue(i) == phi) {
 						incBlock = userPhi->getIncomingBlock(i);
-						break;
+						builder.SetInsertPoint(&*--incBlock->end());
+						builder.CreateStore(builder.CreateLoad(phi2glob[phi]), phi2glob[userPhi]);
 					}
 				}
 				if (incBlock == nullptr) abort();
-
-				builder.SetInsertPoint(&*--incBlock->end());
-				builder.CreateStore(builder.CreateLoad(phi2glob[phi]), phi2glob[userPhi]);
 			} else {
 				builder.SetInsertPoint(cast<Instruction>(user));
 
