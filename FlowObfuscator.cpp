@@ -499,7 +499,7 @@ void handlePHINodes(Module &M, const std::vector<BasicBlock *> &basicBlocks, IRB
 					if (userPhi->getIncomingValue(i) == phi) {
 						incBlock = userPhi->getIncomingBlock(i);
 						builder.SetInsertPoint(&*--incBlock->end());
-						builder.CreateStore(builder.CreateLoad(phi2glob[phi]), phi2glob[userPhi]);
+						builder.CreateStore(builder.CreateLoad(extraGlob), phi2glob[userPhi]);
 					}
 				}
 				if (incBlock == nullptr) abort();
