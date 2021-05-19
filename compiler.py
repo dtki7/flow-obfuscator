@@ -4,7 +4,7 @@ import subprocess
 import sys
 
 
-FLAGS = "-pthread -O2"
+FLAGS = "-pthread -O2 -D_FILE_OFFSET_BITS=64"
 LLVM_INCLUDES = " -I/home/user/devel/llvm/llvm-project-10.0.0/build/lib/clang/10.0.0/include/"
 
 targets = {
@@ -29,7 +29,7 @@ targets_pp = {
     "opt-main32": "clang-opt-main++ -m32" + LLVM_INCLUDES
 }
 
-PRE = ""
+PRE = "bzip2"
 
 def main():
     global targets
