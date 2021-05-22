@@ -703,13 +703,14 @@ void setReleasePoints(Module &M, Function *function, BasicBlock *basicBlock, Glo
 
 // creates a new function, moves everything required by the basic block to the
 // new function and erases landing pad and the following store instr if present
-Function *createNewFunc(Module &M, Function *function, BasicBlock *basicBlock) {
+Function *createNewFunc(Module &M, Function *function, BasicBlock *basicBlock, bool loopBlock, IRBuilder<> &builder) {
 	// create new function and move basic block to it
 	auto funcType = FunctionType::get(Type::getVoidTy(M.getContext()), false);
 	auto newFunc = Function::Create(funcType, GlobalValue::PrivateLinkage, "newFunc", M);
-	auto tmpBlock = BasicBlock::Create(M.getContext(), "", newFunc);
-	basicBlock->moveAfter(tmpBlock);
-	tmpBlock->eraseFromParent();
+	auto entryBlock = BasicBlock::Create(M.getContext(), "", newFunc);
+	basicBlock->moveAfter(entryBlock);
+	builder.SetInsertPoint(entryBlock);
+	builder.CreateBr(basicBlock);
 
 	auto instr = &*std::prev(basicBlock->end(), 1);
 
@@ -721,7 +722,14 @@ Function *createNewFunc(Module &M, Function *function, BasicBlock *basicBlock) {
 	// move successors
 	if (isa<BranchInst>(instr) || isa<InvokeInst>(instr) || isa<SwitchInst>(instr)) {
 		for (unsigned i = 0; i < instr->getNumSuccessors(); i++) {
-			instr->getSuccessor(i)->moveAfter(basicBlock);
+			auto succ = instr->getSuccessor(i);
+			succ->moveAfter(basicBlock);
+			if (loopBlock) {
+				// replace return with loop terminator
+				(--succ->end())->eraseFromParent();
+				builder.SetInsertPoint(succ);
+				builder.CreateBr(basicBlock);
+			}
 		}
 	}
 
@@ -875,14 +883,9 @@ PreservedAnalyses FlowObfuscatorPass::run(Module &M, ModuleAnalysisManager &AM) 
 		std::vector<Value*> thrds;
 		for (auto it = basicBlocks.rbegin(); it != basicBlocks.rend(); it++) {
 			auto basicBlock = *it;
-			auto newFunc = createNewFunc(M, function, basicBlock);
+			auto loopBlock = loopBlocks.find(basicBlock) != loopBlocks.end();
+			auto newFunc = createNewFunc(M, function, basicBlock, loopBlock, builder);
 			thrds.push_back(createThread(M, newFunc, mainBuilder));
-
-			// the new function will restart itself when in loop
-			if (loopBlocks.find(basicBlock) != loopBlocks.end()) {
-				builder.SetInsertPoint(&*--basicBlock->end());
-				createThread(M, newFunc, builder, thrds.back());
-			}
 		}
 		// create wait point for parent function
 		args.clear();
