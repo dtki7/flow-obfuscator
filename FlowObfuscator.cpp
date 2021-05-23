@@ -480,7 +480,7 @@ void handlePHINodes(Module &M, const std::vector<BasicBlock *> &basicBlocks, IRB
 			if (isa<InvokeInst>(incVal)) {
 				auto invokeInstr = cast<InvokeInst>(incVal);
 				auto landBlock = invokeInstr->getNormalDest();
-				builder.SetInsertPoint(&*++landBlock->begin());
+				builder.SetInsertPoint(&*landBlock->begin());
 			} else {
 				auto incBlock = phi->getIncomingBlock(i);
 				builder.SetInsertPoint(&*--incBlock->end());
