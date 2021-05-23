@@ -477,9 +477,14 @@ void handlePHINodes(Module &M, const std::vector<BasicBlock *> &basicBlocks, IRB
 		for (unsigned i = 0; i < phi->getNumIncomingValues(); i++) {
 			auto incVal = phi->getIncomingValue(i);
 			if (isa<PHINode>(incVal)) continue;
-			auto incBlock = phi->getIncomingBlock(i);
-
-			builder.SetInsertPoint(&*--incBlock->end());
+			if (isa<InvokeInst>(incVal)) {
+				auto invokeInstr = cast<InvokeInst>(incVal);
+				auto landBlock = invokeInstr->getNormalDest();
+				builder.SetInsertPoint(&*++landBlock->begin());
+			} else {
+				auto incBlock = phi->getIncomingBlock(i);
+				builder.SetInsertPoint(&*--incBlock->end());
+			}
 			builder.CreateStore(incVal, phi2glob[phi]);
 		}
 
