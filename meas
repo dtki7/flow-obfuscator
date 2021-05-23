@@ -1,0 +1,84 @@
+user@notebook:~/devel/examples/calc_pi/exe-normal$ time ./calc_pi-clang 1000000
+**** PI Computation ( digit: 1000000 )
+FRACTION  : 1.151464362347900
+HEX DIGITS: 26C65E52CB
+( TIME: 2.13444 seconds )
+
+real	0m2,143s
+user	0m2,137s
+sys	    0m0,000s
+
+user@notebook:~/devel/examples/calc_pi/exe-normal$ time ./calc_pi-opt 1000000
+**** PI Computation ( digit: 1000000 )
+FRACTION  : 1.151464362347900
+HEX DIGITS: 26C65E52CB
+( TIME: 99.2565 seconds )
+
+real	1m11,664s
+user	0m28,941s
+sys	    1m10,325s
+
+##################################################
+
+user@notebook:~/devel/examples/calc_pi/exe-loop$ time ./calc_pi-clang 1000000
+**** PI Computation ( digit: 1000000 )
+FRACTION  : 1.151464362347900
+HEX DIGITS: 26C65E52CB
+( TIME: 1.98333 seconds )
+
+real	0m1,998s
+user	0m1,959s
+sys	    0m0,028s
+
+user@notebook:~/devel/examples/calc_pi/exe-loop$ time ./calc_pi-opt 1000000
+**** PI Computation ( digit: 1000000 )
+FRACTION  : 1.151464362347900
+HEX DIGITS: 26C65E52CB
+( TIME: 2.05793 seconds )
+
+real	0m2,067s
+user	0m2,060s
+sys	    0m0,004s
+
+user@notebook:~/devel/examples/calc_pi/exe-loop$ time ./calc_pi-clang 10000000
+**** PI Computation ( digit: 10000000 )
+FRACTION  : 1.092519306564063
+HEX DIGITS: 17AF5863F0
+( TIME: 24.2048 seconds )
+
+real	0m24,270s
+user	0m24,189s
+sys	    0m0,020s
+
+user@notebook:~/devel/examples/calc_pi/exe-loop$ time ./calc_pi-opt 10000000
+**** PI Computation ( digit: 10000000 )
+FRACTION  : 1.092519306564063
+HEX DIGITS: 17AF5863F0
+( TIME: 25.578 seconds )
+
+real	0m25,669s
+user	0m25,547s
+sys 	0m0,036s
+
+##################################################
+
+user@notebook:~/devel/examples/calc_pi/exe-pool$ time ./calc_pi-clang 1000000
+**** PI Computation ( digit: 1000000 )
+FRACTION  : 1.151464362347900
+HEX DIGITS: 26C65E52CB
+( TIME: 2.09779 seconds )
+
+real	0m2,107s
+user	0m2,098s
+sys	    0m0,004s
+
+user@notebook:~/devel/examples/calc_pi/exe-pool$ time ./calc_pi-opt 1000000
+**** PI Computation ( digit: 1000000 )
+FRACTION  : 1.151464362347900
+HEX DIGITS: 26C65E52CB
+( TIME: 353.872 seconds )
+
+real	2m6,366s
+user	3m2,287s
+sys	    2m51,591s
+
