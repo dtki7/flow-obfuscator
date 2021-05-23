@@ -39,7 +39,8 @@ def main():
     targets = targets
 
     for target in targets.keys():
-        cmd = "%s %s -o %s-%s %s" % (targets[target], FLAGS, PRE, target, source_files)
+        cmd = "%s %s %s -o %s-%s" % (targets[target], source_files, FLAGS, PRE, target)
+        print("cmd: " + cmd)
         process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE)
         _, error = process.communicate()
         if (error):
