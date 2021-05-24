@@ -154,6 +154,28 @@ real	0m13,426s
 user	0m6,701s
 sys	    0m10,923s
 
+
+user@notebook:~/devel/examples/bzip2/exe-loop$ time ./bzip2-clang tst1M
+
+real	0m0,155s
+user	0m0,151s
+sys	    0m0,004s
+user@notebook:~/devel/examples/bzip2/exe-loop$ time ./bzip2-clang -d tst1M.bz2 
+
+real	0m0,091s
+user	0m0,087s
+sys	    0m0,004s
+user@notebook:~/devel/examples/bzip2/exe-loop$ time ./bzip2-opt tst1M
+
+real	74m17,890s
+user	22m33,474s
+sys	    57m51,276s
+user@notebook:~/devel/examples/bzip2/exe-loop$ time ./bzip2-opt -d tst1M.bz2 
+
+real	2m21,140s
+user	1m17,846s
+sys 	1m49,569s
+
 ##################################################
 
 user@notebook:~/devel/examples/bzip2/exe-normal$ time ./bzip2-clang tst100M 
@@ -176,4 +198,38 @@ user@notebook:~/devel/examples/bzip2/exe-normal$ time ./bzip2-opt-main -d tst100
 real	0m7,876s
 user	0m7,738s
 sys 	0m0,132s
+
+##################################################
+##################################################
+
+user@notebook:~/devel/examples/chudnovskyPi/exe-loop$ time ./chudnovskyPi-clang 10000
+8
+Secondi = 0
+
+real	0m0,180s
+user	0m0,175s
+sys	    0m0,004s
+user@notebook:~/devel/examples/chudnovskyPi/exe-loop$ time ./chudnovskyPi-opt 10000
+8
+Secondi = 0
+
+real	0m0,243s
+user	0m0,229s
+sys	    0m0,016s
+
+
+user@notebook:~/devel/examples/chudnovskyPi/exe-loop$ time ./chudnovskyPi-clang 100000
+5
+Secondi = 49
+
+real	0m49,863s
+user	0m49,359s
+sys	    0m0,388s
+user@notebook:~/devel/examples/chudnovskyPi/exe-loop$ time ./chudnovskyPi-opt 100000
+5
+Secondi = 52
+
+real	0m52,177s
+user	0m51,316s
+sys	    0m0,593s
 
