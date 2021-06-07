@@ -12,7 +12,7 @@ test spin
 threads limit
 
 cmake .. -G Ninja -DCMAKE_PREFIX_PATH=C:\Users\user\Downloads\win-devel\llvm-project-llvmorg-11.0.0/build -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=MinSizeRel
-llvm: -DLLVM_EXPORT_SYMBOLS_FOR_PLUGINS=ON
+llvm: -DLLVM_EXPORT_SYMBOLS_FOR_PLUGINS=ON -DENABLE_EXPERIMENTAL_NEW_PASS_MANAGER=ON -DCMAKE_POLICY_DEFAULT_CMP0116=OLD -DLLVM_ENABLE_PROJECTS=clang
 
 clang-cl main-opt.bc /link /ENTRY:WinMainCRTStartup /SUBSYSTEM:WINDOWS shell32.lib kernel32.lib user32.lib advapi32.lib vcruntime.lib libcmt.lib
 
