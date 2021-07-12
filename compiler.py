@@ -36,7 +36,7 @@ def main():
 
     source_files = " ".join(sys.argv[1:])
 
-    targets = targets
+    # targets = targets_pp
 
     for target in targets.keys():
         cmd = "%s %s %s -o %s-%s" % (targets[target], source_files, FLAGS, PRE, target)
