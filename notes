@@ -14,7 +14,7 @@ threads limit
 cmake .. -G Ninja -DCMAKE_PREFIX_PATH=C:\Users\user\Downloads\win-devel\llvm-project-llvmorg-11.0.0/build -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=MinSizeRel
 llvm: -DLLVM_EXPORT_SYMBOLS_FOR_PLUGINS=ON -DENABLE_EXPERIMENTAL_NEW_PASS_MANAGER=ON -DCMAKE_POLICY_DEFAULT_CMP0116=OLD -DLLVM_ENABLE_PROJECTS=clang
 
-shell32.lib kernel32.lib user32.lib advapi32.lib ole32.lib libcmt.lib libvcruntime.lib urlmon.lib wininet.lib gdi32.lib winspool.lib comdlg32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libucrt.lib Ws2_32.lib psapi.lib shlwapi.lib Iphlpapi.lib dnsapi.lib ntdll.lib Winhttp.lib Crypt32.lib Mpr.lib Imagehlp.lib
+shell32.lib kernel32.lib user32.lib advapi32.lib ole32.lib libcmt.lib libvcruntime.lib urlmon.lib wininet.lib gdi32.lib winspool.lib comdlg32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib libucrt.lib Ws2_32.lib psapi.lib shlwapi.lib Iphlpapi.lib dnsapi.lib ntdll.lib Winhttp.lib Crypt32.lib Mpr.lib Imagehlp.lib Winmm.lib
 clang-cl main-opt.bc /link /ENTRY:WinMainCRTStartup /SUBSYSTEM:WINDOWS
 
 random engine:
