@@ -37,6 +37,33 @@ def lcs(X, Y):
     # L[m][n] contains the length of LCS of X[0..n-1] & Y[0..m-1]
     return L[m][n]
 
+def get_disasm(path):
+    if type(path) is not str:
+        raise("path not str")
+
+    data = b""
+    arch = ""
+
+    if path.endswith(".exe"):
+        exe = PE(path)
+        if exe.FILE_HEADER.Machine == 0x14c:
+            arch = "i386"
+        elif exe.FILE_HEADER.Machine == 0x8664:
+            arch = "amd64"
+        else:
+            raise("unknown arch")
+        for sect in exe.sections:
+            if sect.Name.startswith(b".text"):
+                data = sect.get_data()
+                break
+    else:
+        exe = elf.ELF(path, checksec=False)
+        arch = exe.get_machine_arch()
+        sect = exe.get_section_by_name(".text")
+        data = sect.data()
+
+    return disasm(data, arch=arch)
+
 ####################################################################
 
 def get_files(path):
@@ -67,6 +94,7 @@ def get_files(path):
     return files
 
 def get_program_size_increase(files):
+    print("program size increase:")
     for prog in files:
         try:
             size = os.path.getsize(files[prog]["clang"]) / 1000.0
@@ -82,8 +110,50 @@ def get_program_size_increase(files):
         print_s("{:.2f} / {:.2f};".format(size, size32))  # not obfusacted
         print_s("{:.2f} / {:.2f};".format(size_o, size32_o))  # obfusacted
         print_s("{:.2f} / {:.2f}\n".format(size_p, size32_p))  # procentual
+    print()
+
+def _get_biggest_basic_block(path):
+    dis = get_disasm(path).split("\n")
+
+    range_ret = [0, 0]
+    range_tmp = [0, 0]
+    for i in range(len(dis)):
+        range_tmp[1] = i
+        if "j" in dis[i] or "call" in dis[i] or "ret" in dis[i]:
+            if range_tmp[1] - range_tmp[0] > range_ret[1] - range_ret[0]:
+                range_ret = range_tmp.copy()
+            range_tmp[0] = i + 1
+
+    byte_cnt = 0
+    i = range_ret[0]
+    while i < range_ret[1] + 1:
+        byte_cnt += len(dis[i].split("  ")[1].strip().split(" "))
+        i += 1
+
+    return byte_cnt
+
+def get_biggest_basic_block(files):
+    print("biggest basic block:")
+    for prog in files:
+        size = 0
+        size_o = 0
+        size32 = 0
+        size32_o = 0
+        try:
+            size = _get_biggest_basic_block(files[prog]["clang"])
+            size_o = _get_biggest_basic_block(files[prog]["opt"])
+            size32 = _get_biggest_basic_block(files[prog]["clang32"])
+            size32_o = _get_biggest_basic_block(files[prog]["opt32"])
+        except:
+            continue
+
+        print_s(prog + ";")  # prog name
+        print_s("{:d} / {:d};".format(size, size32))  # not obfuscated
+        print_s("{:d} / {:d}\n".format(size_o, size32_o))  # obfuscated
+    print()
 
 def get_longest_common_subsequence(files):
+    print("longest common subsequence:")
     for prog in files:
         content = b""
         content_o = b""
@@ -111,50 +181,20 @@ def get_longest_common_subsequence(files):
         print_s(prog + ";")  # prog name
         print_s("{:d};".format(lcs64))  # 64-bit
         print_s("{:d}\n".format(lcs32))  # 32-bit
-
-def get_instr_count(path):
-    if type(path) is not str:
-        raise("path not str")
-
-    data = b""
-    arch = ""
-
-    if path.endswith(".exe"):
-        exe = PE(path)
-        if exe.FILE_HEADER.Machine == 0x14c:
-            arch = "i386"
-        elif exe.FILE_HEADER.Machine == 0x8664:
-            arch = "amd64"
-        else:
-            raise("unknown arch")
-        for sect in exe.sections:
-            if sect.Name.startswith(b".text"):
-                data = sect.get_data()
-                break
-    else:
-        exe = elf.ELF(path, checksec=False)
-        arch = exe.get_machine_arch()
-        sect = exe.get_section_by_name(".text")
-        data = sect.data()
-
-    return len(disasm(data, arch=arch).split("\n"))
+    print()
 
 def get_instruction_increase(files):
+    print("instruction increase:")
     for prog in files:
         instr_count = b""
         instr_count_o = b""
         instr_count32 = b""
         instr_count32_o = b""
         try:
-            for f in files[prog]:
-                if f == "clang":
-                    instr_count = get_instr_count(files[prog][f])
-                elif f == "opt":
-                    instr_count_o = get_instr_count(files[prog][f])
-                elif f == "clang32":
-                    instr_count32 = get_instr_count(files[prog][f])
-                elif f == "opt32":
-                    instr_count32_o = get_instr_count(files[prog][f])
+            instr_count = len(get_disasm(files[prog]["clang"]).split("\n"))
+            instr_count_o = len(get_disasm(files[prog]["opt"]).split("\n"))
+            instr_count32 = len(get_disasm(files[prog]["clang32"]).split("\n"))
+            instr_count32_o = len(get_disasm(files[prog]["opt32"]).split("\n"))
         except:
             continue
 
@@ -165,6 +205,7 @@ def get_instruction_increase(files):
         print_s("{:d} / {:d};".format(instr_count, instr_count32))  # not obfusacted
         print_s("{:d} / {:d};".format(instr_count_o, instr_count32_o))  # obfusacted
         print_s("{:.2f} / {:.2f}\n".format(instr_count_p, instr_count32_p))  # procentual
+    print()
 
 if __name__ == "__main__":
     if (len(sys.argv) < 2):
@@ -176,4 +217,5 @@ if __name__ == "__main__":
     print_s("do lcs?\n> ")
     if input() == "yes":
         get_longest_common_subsequence(files)
+    get_biggest_basic_block(files)
     get_instruction_increase(files)
