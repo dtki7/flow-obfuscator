@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 
 import os
-# import pefile
-# import pwn
+from pefile import PE
+from pwn import elf, disasm
 import sys
 
 class autodict(dict):
@@ -112,8 +112,59 @@ def get_longest_common_subsequence(files):
         print_s("{:d};".format(lcs64))  # 64-bit
         print_s("{:d}\n".format(lcs32))  # 32-bit
 
-def get_instruction_increase():
-    pass
+def get_instr_count(path):
+    if type(path) is not str:
+        raise("path not str")
+
+    data = b""
+    arch = ""
+
+    if path.endswith(".exe"):
+        exe = PE(path)
+        if exe.FILE_HEADER.Machine == 0x14c:
+            arch = "i386"
+        elif exe.FILE_HEADER.Machine == 0x8664:
+            arch = "amd64"
+        else:
+            raise("unknown arch")
+        for sect in exe.sections:
+            if sect.Name.startswith(b".text"):
+                data = sect.get_data()
+                break
+    else:
+        exe = elf.ELF(path, checksec=False)
+        arch = exe.get_machine_arch()
+        sect = exe.get_section_by_name(".text")
+        data = sect.data()
+
+    return len(disasm(data, arch=arch).split("\n"))
+
+def get_instruction_increase(files):
+    for prog in files:
+        instr_count = b""
+        instr_count_o = b""
+        instr_count32 = b""
+        instr_count32_o = b""
+        try:
+            for f in files[prog]:
+                if f == "clang":
+                    instr_count = get_instr_count(files[prog][f])
+                elif f == "opt":
+                    instr_count_o = get_instr_count(files[prog][f])
+                elif f == "clang32":
+                    instr_count32 = get_instr_count(files[prog][f])
+                elif f == "opt32":
+                    instr_count32_o = get_instr_count(files[prog][f])
+        except:
+            continue
+
+        instr_count_p = (instr_count_o / instr_count - 1) * 100
+        instr_count32_p = (instr_count32_o / instr_count32 - 1) * 100
+
+        print_s(prog + ";")  # prog name
+        print_s("{:d} / {:d};".format(instr_count, instr_count32))  # not obfusacted
+        print_s("{:d} / {:d};".format(instr_count_o, instr_count32_o))  # obfusacted
+        print_s("{:.2f} / {:.2f}\n".format(instr_count_p, instr_count32_p))  # procentual
 
 if __name__ == "__main__":
     if (len(sys.argv) < 2):
@@ -125,3 +176,4 @@ if __name__ == "__main__":
     print_s("do lcs?\n> ")
     if input() == "yes":
         get_longest_common_subsequence(files)
+    get_instruction_increase(files)
