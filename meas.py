@@ -1,9 +1,11 @@
 #!/usr/bin/python3
 
 import os
+import sys
+
 from pefile import PE
 from pwn import elf, disasm
-import sys
+from subprocess import Popen, PIPE, DEVNULL
 
 class autodict(dict):
     def __getitem__(self, name):
@@ -89,8 +91,6 @@ def get_files(path):
                 files[f[f.rfind(os.path.sep) + 1:f.rfind("-opt-main")]]["opt-main"] = f
             elif f.endswith("-opt-main32"):
                 files[f[f.rfind(os.path.sep) + 1:f.rfind("-opt-main32")]]["opt-main32"] = f
-        else:
-            raise(f + " is neither file nor dir")
     return files
 
 def get_program_size_increase(files):
@@ -207,6 +207,40 @@ def get_instruction_increase(files):
         print_s("{:.2f} / {:.2f}\n".format(instr_count_p, instr_count32_p))  # procentual
     print()
 
+def _get_memory_usage_increase(path):
+    cmd = "/usr/bin/time -f %M " + path
+    ps = Popen(cmd, shell=True, stdout=DEVNULL, stdin=PIPE, stderr=PIPE)
+    try:
+        ps.wait(1)
+    except:
+        pass
+    ps.terminate()
+    return int(ps.communicate(timeout=1)[1].split(b"\n")[-2])
+
+def get_memory_usage_increase(files):
+    print("memory usage increase:")
+    for prog in files:
+        memory = 0
+        memory_o = 0
+        memory32 = 0
+        memory32_o = 0
+        try:
+            memory = _get_memory_usage_increase(files[prog]["clang"])
+            memory_o = _get_memory_usage_increase(files[prog]["opt"])
+            memory32 = _get_memory_usage_increase(files[prog]["clang32"])
+            memory32_o = _get_memory_usage_increase(files[prog]["opt32"])
+        except:
+            continue
+
+        memory_p = (memory_o / memory - 1) * 100
+        memory32_p = (memory32_o / memory32 - 1) * 100
+
+        print_s(prog + ";")  # prog name
+        print_s("{:d} / {:d};".format(memory, memory32))  # not obfusacted
+        print_s("{:d} / {:d};".format(memory_o, memory32_o))  # obfusacted
+        print_s("{:.2f} / {:.2f}\n".format(memory_p, memory32_p))  # procentual
+    print()
+
 if __name__ == "__main__":
     if (len(sys.argv) < 2):
         print("please provide the path")
@@ -219,3 +253,4 @@ if __name__ == "__main__":
         get_longest_common_subsequence(files)
     get_biggest_basic_block(files)
     get_instruction_increase(files)
+    get_memory_usage_increase(files)
