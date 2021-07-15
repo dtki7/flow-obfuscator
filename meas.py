@@ -256,3 +256,10 @@ if __name__ == "__main__":
     print_s("do subprocess?\n> ")
     if input() == "yes":
         get_memory_usage_increase(files)
+
+    print("files:")
+    for prog in files:
+        for ty in files[prog]:
+            path = files[prog][ty]
+            if type(path) is not autodict:
+                print(path)
