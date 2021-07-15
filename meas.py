@@ -253,4 +253,6 @@ if __name__ == "__main__":
         get_longest_common_subsequence(files)
     get_biggest_basic_block(files)
     get_instruction_increase(files)
-    get_memory_usage_increase(files)
+    print_s("do subprocess?\n> ")
+    if input() == "yes":
+        get_memory_usage_increase(files)
