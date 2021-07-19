@@ -80,26 +80,28 @@ def update(dict1, dict2):
 def get_files(path):
     files = autodict()
     for f in os.listdir(path):
+        if f == "backup" or ".zip" in f:
+            continue
         f = path + os.path.sep + f
         if os.path.isdir(f):
             update(files, get_files(f))
         elif os.path.isfile(f):
-            if f.endswith("-clang"):
-                files[f[f.rfind(os.path.sep) + 1:f.rfind("-clang")]]["clang"] = f
-            elif f.endswith("-clang32"):
-                files[f[f.rfind(os.path.sep) + 1:f.rfind("-clang32")]]["clang32"] = f
-            elif f.endswith("-gcc"):
-                files[f[f.rfind(os.path.sep) + 1:f.rfind("-gcc")]]["gcc"] = f
-            elif f.endswith("-gcc32"):
-                files[f[f.rfind(os.path.sep) + 1:f.rfind("-gcc32")]]["gcc32"] = f
-            elif f.endswith("-opt"):
-                files[f[f.rfind(os.path.sep) + 1:f.rfind("-opt")]]["opt"] = f
-            elif f.endswith("-opt32"):
-                files[f[f.rfind(os.path.sep) + 1:f.rfind("-opt32")]]["opt32"] = f
-            elif f.endswith("-opt-main"):
-                files[f[f.rfind(os.path.sep) + 1:f.rfind("-opt-main")]]["opt-main"] = f
-            elif f.endswith("-opt-main32"):
-                files[f[f.rfind(os.path.sep) + 1:f.rfind("-opt-main32")]]["opt-main32"] = f
+            if f.endswith("-clang") or f.endswith("-clang.exe") or f.endswith("-clang.dll"):
+                files[f[f.rfind(os.path.sep) + 1:].replace("-clang", "")]["clang"] = f
+            elif f.endswith("-clang32") or f.endswith("-clang32.exe") or f.endswith("-clang32.dll"):
+                files[f[f.rfind(os.path.sep) + 1:].replace("-clang32", "")]["clang32"] = f
+            elif f.endswith("-gcc") or f.endswith("-gcc.exe") or f.endswith("-gcc.dll"):
+                files[f[f.rfind(os.path.sep) + 1:].replace("-gcc", "")]["gcc"] = f
+            elif f.endswith("-gcc32") or f.endswith("-gcc32.exe") or f.endswith("-gcc32.dll"):
+                files[f[f.rfind(os.path.sep) + 1:].replace("-gcc32", "")]["gcc32"] = f
+            elif f.endswith("-opt") or f.endswith("-opt.exe") or f.endswith("-opt.dll"):
+                files[f[f.rfind(os.path.sep) + 1:].replace("-opt", "")]["opt"] = f
+            elif f.endswith("-opt32") or f.endswith("-opt32.exe") or f.endswith("-opt32.dll"):
+                files[f[f.rfind(os.path.sep) + 1:].replace("-opt32", "")]["opt32"] = f
+            elif f.endswith("-opt-main") or f.endswith("-opt-main.exe") or f.endswith("-opt-main.dll"):
+                files[f[f.rfind(os.path.sep) + 1:].replace("-opt-main", "")]["opt-main"] = f
+            elif f.endswith("-opt-main32") or f.endswith("-opt-main32.exe") or f.endswith("-opt-main32.dll"):
+                files[f[f.rfind(os.path.sep) + 1:].replace("-opt-main32", "")]["opt-main32"] = f
     return files
 
 def get_program_size_increase(files):
@@ -110,15 +112,19 @@ def get_program_size_increase(files):
             size32 = os.path.getsize(files[prog]["clang32"]) / 1000.0
             size_o = os.path.getsize(files[prog]["opt"]) / 1000.0
             size32_o = os.path.getsize(files[prog]["opt32"]) / 1000.0
-            size_p = (size_o / size - 1) * 100
-            size32_p = (size32_o / size32 - 1) * 100
         except:
             continue
+        size -= 6.016
+        size32 -= 5.532
+        size_o -= 6.016
+        size32_o -= 5.532
+        size_p = (size_o / size - 1) * 100
+        size32_p = (size32_o / size32 - 1) * 100
 
         print_s(prog + ";")  # prog name
-        print_s("{:.2f} / {:.2f};".format(size, size32))  # not obfusacted
-        print_s("{:.2f} / {:.2f};".format(size_o, size32_o))  # obfusacted
-        print_s("{:.2f} / {:.2f}\n".format(size_p, size32_p))  # procentual
+        print_s("{:.2f};{:.2f};".format(size, size_o))  # 32-bit
+        print_s("{:.2f};{:.2f};".format(size32, size32_o))  # 64-bit
+        print_s("{:.2f};{:.2f}\n".format(size_p, size32_p))  # procentual
     print()
 
 def _get_biggest_basic_block(path):
@@ -294,18 +300,18 @@ if __name__ == "__main__":
     if (len(sys.argv) < 2):
         print("please provide the path")
         exit(-1)
-
     files = get_files(os.path.normpath(sys.argv[1]))
+
     get_program_size_increase(files)
-    print_s("do lcs?\n> ")
-    if input() == "yes":
-        get_longest_common_subsequence(files)
-    get_biggest_basic_block(files)
-    get_instruction_increase(files)
-    print_s("do subprocess?\n> ")
-    if input() == "yes":
-        get_memory_usage_increase(files)
-    get_yara_detections(files)
+    # print_s("do lcs?\n> ")
+    # if input() == "yes":
+    #     get_longest_common_subsequence(files)
+    # get_biggest_basic_block(files)
+    # get_instruction_increase(files)
+    # print_s("do subprocess?\n> ")
+    # if input() == "yes":
+    #     get_memory_usage_increase(files)
+    # get_yara_detections(files)
 
     print("files:")
     for prog in files:
