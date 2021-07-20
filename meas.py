@@ -18,28 +18,20 @@ class autodict(dict):
 def print_s(input):
     print(input, end='')
 
+# https://stackoverflow.com/questions/53276353/longest-common-subsequence-c-python-script-explanation
 def lcs(X, Y):
-    # find the length of the strings
-    m = len(X)
-    n = len(Y)
+    ny = len(Y)
 
-    # declaring the array for storing the dp values
-    L = [[None]*(n + 1) for i in range(m + 1)]
-
-    """Following steps build L[m + 1][n + 1] in bottom up fashion
-    Note: L[i][j] contains length of LCS of X[0..i-1]
-    and Y[0..j-1]"""
-    for i in range(m + 1):
-        for j in range(n + 1):
-            if i == 0 or j == 0 :
-                L[i][j] = 0
-            elif X[i-1] == Y[j-1]:
-                L[i][j] = L[i-1][j-1]+1
+    curr = [0] * (ny + 1)
+    for x in X:
+        prev = list(curr)
+        for i, y in enumerate(Y):
+            if x == y:
+                curr[i+1] = prev[i] + 1
             else:
-                L[i][j] = max(L[i-1][j], L[i][j-1])
+                curr[i+1] = max(curr[i], prev[i+1])
 
-    # L[m][n] contains the length of LCS of X[0..n-1] & Y[0..m-1]
-    return L[m][n]
+    return curr[ny]
 
 def get_disasm(path):
     if type(path) is not str:
@@ -163,8 +155,8 @@ def get_biggest_basic_block(files):
             continue
 
         print_s(prog + ";")  # prog name
-        print_s("{:d} / {:d};".format(size, size32))  # not obfuscated
-        print_s("{:d} / {:d}\n".format(size_o, size32_o))  # obfuscated
+        print_s("{:d};{:d};".format(size, size_o))  # 64-bit
+        print_s("{:d};{:d}\n".format(size32, size32_o))  # 32-bit
     print()
 
 def get_longest_common_subsequence(files):
@@ -302,10 +294,8 @@ if __name__ == "__main__":
         exit(-1)
     files = get_files(os.path.normpath(sys.argv[1]))
 
-    get_program_size_increase(files)
-    # print_s("do lcs?\n> ")
-    # if input() == "yes":
-    #     get_longest_common_subsequence(files)
+    # get_program_size_increase(files)
+    get_longest_common_subsequence(files)
     # get_biggest_basic_block(files)
     # get_instruction_increase(files)
     # print_s("do subprocess?\n> ")
