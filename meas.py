@@ -196,6 +196,57 @@ def get_instruction_increase(files):
         print_s("{:.2f};{:.2f}\n".format(instr_count_p, instr_count32_p))  # procentual
     print()
 
+def _extract(hay, needle):
+    y = hay.find(needle)
+    x = hay.rfind(b'\n', 0, y)
+    return float(hay[x:y].strip())
+
+def _get_compile_time(path, compiler):
+    vals = []
+    while len(vals) < 9:
+        cmd = "cd " + os.path.dirname(path) + " && chrt -f 99 perf stat "  + compiler + \
+                " -c -O2 -pthread -I/usr/lib/llvm-10/lib/clang/10.0.0/include/stddef.h" + \
+                " -I../lib " + path
+        ps = Popen(cmd, shell=True, stdout=PIPE, stdin=PIPE, stderr=PIPE)
+        ret = ps.communicate()
+        if ret[0] != b'':
+            print("sudo necessary")
+            exit(-1)
+        t = ret[1].split(b'\n')
+        if _extract("context-switches") > 0:
+            continue
+        vals.append(_extract("seconds time elapsed"))
+
+    mean = 0
+    for v in vals:
+        mean += v
+    mean /= len(vals)
+    return mean
+
+def get_compile_time(path):
+    path = os.path.normpath(path)
+
+    print("compile time:")
+    for f in os.listdir(path):
+        if not f.endswith(".c"):
+            continue
+
+        f = path + os.path.sep + f
+        time = b""
+        time_o = b""
+        try:
+            time = _get_compile_time(f, "clang-10")
+            time_o = _get_compile_time(f, "clang-opt")
+        except:
+            continue
+
+        time_p = (time_o / time - 1) * 100
+
+        print_s(os.path.basename(f) + ";")  # prog name
+        print_s("{:d};{:d};".format(time, time_o))  # times
+        print_s("{:.2f}\n".format(time_p))  # procentual
+    print()
+
 def _get_memory_usage_increase(path):
     cmd = "/usr/bin/time -f %M " + path
     ps = Popen(cmd, shell=True, stdout=DEVNULL, stdin=PIPE, stderr=PIPE)
@@ -277,9 +328,10 @@ if __name__ == "__main__":
     files = get_files(os.path.normpath(sys.argv[1]))
 
     # get_program_size_increase(files)
-    get_longest_common_subsequence(files)
+    # get_longest_common_subsequence(files)
     # get_biggest_basic_block(files)
     # get_instruction_increase(files)
+    get_compile_time("/home/user/devel/examples/coreutils-8.28-ref/src")
     # print_s("do subprocess?\n> ")
     # if input() == "yes":
     #     get_memory_usage_increase(files)
