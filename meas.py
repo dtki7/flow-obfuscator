@@ -18,20 +18,10 @@ class autodict(dict):
 def print_s(input):
     print(input, end='')
 
-# https://stackoverflow.com/questions/53276353/longest-common-subsequence-c-python-script-explanation
-def lcs(X, Y):
-    ny = len(Y)
-
-    curr = [0] * (ny + 1)
-    for x in X:
-        prev = list(curr)
-        for i, y in enumerate(Y):
-            if x == y:
-                curr[i+1] = prev[i] + 1
-            else:
-                curr[i+1] = max(curr[i], prev[i+1])
-
-    return curr[ny]
+def lcs(file1, file2):
+    cmd = "./meas-lcs " + file1 + " " + file2
+    ps = Popen(cmd, shell=True, stdout=PIPE, stdin=PIPE, stderr=DEVNULL)
+    return int(ps.communicate()[0].strip())
 
 def get_disasm(path):
     if type(path) is not str:
@@ -167,23 +157,15 @@ def get_longest_common_subsequence(files):
         content32 = b""
         content32_o = b""
         try:
-            f = open(files[prog]["clang"], "rb")
-            content = f.read()
-            f.close()
-            f = open(files[prog]["opt"], "rb")
-            content_o = f.read()
-            f.close()
-            f = open(files[prog]["clang32"], "rb")
-            content32 = f.read()
-            f.close()
-            f = open(files[prog]["opt32"], "rb")
-            content32_o = f.read()
-            f.close()
+            file = files[prog]["clang"]
+            file_o = files[prog]["opt"]
+            file32 = files[prog]["clang32"]
+            file32_o = files[prog]["opt32"]
+
+            lcs64 = lcs(file, file_o)
+            lcs32 = lcs(file32, file32_o)
         except:
             continue
-
-        lcs64 = lcs(content, content_o)
-        lcs32 = lcs(content32, content32_o)
 
         print_s(prog + ";")  # prog name
         print_s("{:d};".format(lcs64))  # 64-bit
@@ -209,9 +191,9 @@ def get_instruction_increase(files):
         instr_count32_p = (instr_count32_o / instr_count32 - 1) * 100
 
         print_s(prog + ";")  # prog name
-        print_s("{:d} / {:d};".format(instr_count, instr_count32))  # not obfusacted
-        print_s("{:d} / {:d};".format(instr_count_o, instr_count32_o))  # obfusacted
-        print_s("{:.2f} / {:.2f}\n".format(instr_count_p, instr_count32_p))  # procentual
+        print_s("{:d};{:d};".format(instr_count, instr_count_o))  # 64-bit
+        print_s("{:d};{:d};".format(instr_count32, instr_count32_o))  # 32-bit
+        print_s("{:.2f};{:.2f}\n".format(instr_count_p, instr_count32_p))  # procentual
     print()
 
 def _get_memory_usage_increase(path):
