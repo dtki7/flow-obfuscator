@@ -1,5 +1,5 @@
 // https://www.geeksforgeeks.org/longest-common-substring-dp-29/
-https://stackoverflow.com/questions/53276353/longest-common-subsequence-c-python-script-explanation
+// https://stackoverflow.com/questions/53276353/longest-common-subsequence-c-python-script-explanation
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -7,6 +7,7 @@ https://stackoverflow.com/questions/53276353/longest-common-subsequence-c-python
 uint32_t lcs(const std::vector<char> &X, const std::vector<char> &Y) {
   std::vector<uint32_t> curr(Y.size() + 1, 0);
   uint32_t len = 0;
+  uint32_t pos = 0;
   for (auto x : X) {
     std::vector<uint32_t> prev = curr;
     size_t i = 0;
@@ -14,6 +15,7 @@ uint32_t lcs(const std::vector<char> &X, const std::vector<char> &Y) {
       if (x == y) {
         curr[i + 1] = prev[i] + 1;
         if (len < curr[i + 1]) {
+          pos = i;
           len = curr[i + 1];
         }
       } else {
@@ -22,6 +24,7 @@ uint32_t lcs(const std::vector<char> &X, const std::vector<char> &Y) {
       i++;
     }
   }
+  std::cout << "pos: " << pos << std::endl;
   return len;
 }
 
@@ -47,5 +50,5 @@ int main(int argc, char *argv[]) {
   file1.close();
   file2.close();
 
-  printf("%u\n", lcs(X, Y));
+  std::cout << "len: " << lcs(X, Y) << std::endl;
 }
