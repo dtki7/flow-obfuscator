@@ -199,7 +199,7 @@ def get_instruction_increase(files):
 def _extract(hay, needle):
     y = hay.find(needle)
     x = hay.rfind(b'\n', 0, y)
-    return float(hay[x:y].strip())
+    return float(hay[x:y].strip().replace(b',', b'.'))
 
 def _get_compile_time(path, compiler):
     vals = []
@@ -212,10 +212,13 @@ def _get_compile_time(path, compiler):
         if ret[0] != b'':
             print("sudo necessary")
             exit(-1)
-        t = ret[1].split(b'\n')
-        if _extract("context-switches") > 0:
-            continue
-        vals.append(_extract("seconds time elapsed"))
+        try:
+            if _extract(ret[1], b"context-switches") > 0:
+                continue
+        except:
+            print("clang-opt not set")
+            exit(-1)
+        vals.append(_extract(ret[1], b"seconds time elapsed"))
 
     mean = 0
     for v in vals:
@@ -243,7 +246,7 @@ def get_compile_time(path):
         time_p = (time_o / time - 1) * 100
 
         print_s(os.path.basename(f) + ";")  # prog name
-        print_s("{:d};{:d};".format(time, time_o))  # times
+        print_s("{:f};{:f};".format(time, time_o))  # times
         print_s("{:.2f}\n".format(time_p))  # procentual
     print()
 
@@ -322,10 +325,10 @@ def get_yara_detections(files):
 
 
 if __name__ == "__main__":
-    if (len(sys.argv) < 2):
-        print("please provide the path")
-        exit(-1)
-    files = get_files(os.path.normpath(sys.argv[1]))
+    # if (len(sys.argv) < 2):
+    #     print("please provide the path")
+    #     exit(-1)
+    # files = get_files(os.path.normpath(sys.argv[1]))
 
     # get_program_size_increase(files)
     # get_longest_common_subsequence(files)
@@ -337,9 +340,9 @@ if __name__ == "__main__":
     #     get_memory_usage_increase(files)
     # get_yara_detections(files)
 
-    print("files:")
-    for prog in files:
-        for ty in files[prog]:
-            path = files[prog][ty]
-            if type(path) is not autodict:
-                print(path)
+    # print("files:")
+    # for prog in files:
+    #     for ty in files[prog]:
+    #         path = files[prog][ty]
+    #         if type(path) is not autodict:
+    #             print(path)
