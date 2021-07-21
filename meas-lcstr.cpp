@@ -1,24 +1,28 @@
-// https://www.geeksforgeeks.org/python-program-for-longest-common-subsequence/
-// https://stackoverflow.com/questions/53276353/longest-common-subsequence-c-python-script-explanation
+// https://www.geeksforgeeks.org/longest-common-substring-dp-29/
+https://stackoverflow.com/questions/53276353/longest-common-subsequence-c-python-script-explanation
 #include <fstream>
 #include <iostream>
 #include <vector>
 
 uint32_t lcs(const std::vector<char> &X, const std::vector<char> &Y) {
   std::vector<uint32_t> curr(Y.size() + 1, 0);
+  uint32_t len = 0;
   for (auto x : X) {
     std::vector<uint32_t> prev = curr;
     size_t i = 0;
     for (auto y : Y) {
       if (x == y) {
         curr[i + 1] = prev[i] + 1;
+        if (len < curr[i + 1]) {
+          len = curr[i + 1];
+        }
       } else {
-        curr[i + 1] = std::max(curr[i], prev[i + 1]);
+        curr[i + 1] = 0;
       }
       i++;
     }
   }
-  return curr[Y.size()];
+  return len;
 }
 
 int main(int argc, char *argv[]) {
