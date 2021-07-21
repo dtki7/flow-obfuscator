@@ -62,7 +62,7 @@ def update(dict1, dict2):
 def get_files(path):
     files = autodict()
     for f in os.listdir(path):
-        if f == "backup" or ".zip" in f:
+        if f == "backup" or ".zip" in f or f == "codesections":
             continue
         f = path + os.path.sep + f
         if os.path.isdir(f):
@@ -104,8 +104,8 @@ def get_program_size_increase(files):
         size32_p = (size32_o / size32 - 1) * 100
 
         print_s(prog + ";")  # prog name
-        print_s("{:.2f};{:.2f};".format(size, size_o))  # 32-bit
-        print_s("{:.2f};{:.2f};".format(size32, size32_o))  # 64-bit
+        print_s("{:.2f};{:.2f};".format(size, size_o))  # 64-bit
+        print_s("{:.2f};{:.2f};".format(size32, size32_o))  # 32-bit
         print_s("{:.2f};{:.2f}\n".format(size_p, size32_p))  # procentual
     print()
 
@@ -202,11 +202,12 @@ def _extract(hay, needle):
     return float(hay[x:y].strip().replace(b',', b'.'))
 
 def _get_compile_time(path, compiler):
-    vals = []
-    while len(vals) < 9:
-        cmd = "cd " + os.path.dirname(path) + " && chrt -f 99 perf stat "  + compiler + \
+    cmd = "cd " + os.path.dirname(path) + " && chrt -f 99 perf stat "  + compiler + \
                 " -c -O2 -pthread -I/usr/lib/llvm-10/lib/clang/10.0.0/include/stddef.h" + \
                 " -I../lib " + path
+
+    vals = []
+    while len(vals) < 9:
         ps = Popen(cmd, shell=True, stdout=PIPE, stdin=PIPE, stderr=PIPE)
         ret = ps.communicate()
         if ret[0] != b'':
@@ -252,12 +253,14 @@ def get_compile_time(path):
 
 def _get_memory_usage_increase(path):
     cmd = "/usr/bin/time -f %M " + path
+    # TODO: 10 vals / ulimit
     ps = Popen(cmd, shell=True, stdout=DEVNULL, stdin=PIPE, stderr=PIPE)
     try:
         ps.wait(1)
     except:
         pass
-    ps.terminate()
+    #TODO: kill child?
+    ps.kill()
     return int(ps.communicate(timeout=1)[1].split(b"\n")[-2])
 
 def get_memory_usage_increase(files):
@@ -325,24 +328,24 @@ def get_yara_detections(files):
 
 
 if __name__ == "__main__":
-    # if (len(sys.argv) < 2):
-    #     print("please provide the path")
-    #     exit(-1)
-    # files = get_files(os.path.normpath(sys.argv[1]))
+    if (len(sys.argv) < 2):
+        print("please provide the path")
+        exit(-1)
+    files = get_files(os.path.normpath(sys.argv[1]))
 
     # get_program_size_increase(files)
-    # get_longest_common_subsequence(files)
+    get_longest_common_subsequence(files)
     # get_biggest_basic_block(files)
     # get_instruction_increase(files)
-    get_compile_time("/home/user/devel/examples/coreutils-8.28-ref/src")
-    # print_s("do subprocess?\n> ")
-    # if input() == "yes":
+    # get_compile_time("/home/user/devel/examples/coreutils-8.28-ref/src")
+    # print_s("do memory usage increase?\n> ")
+    # if input().startswith("yes"):
     #     get_memory_usage_increase(files)
     # get_yara_detections(files)
 
-    # print("files:")
-    # for prog in files:
-    #     for ty in files[prog]:
-    #         path = files[prog][ty]
-    #         if type(path) is not autodict:
-    #             print(path)
+    print("files:")
+    for prog in files:
+        for ty in files[prog]:
+            path = files[prog][ty]
+            if type(path) is not autodict:
+                print(path)
