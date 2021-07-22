@@ -293,9 +293,9 @@ def get_memory_usage_increase(files):
         memory32_p = (memory32_o / memory32 - 1) * 100
 
         print_s(prog + ";")  # prog name
-        print_s("{:.2f} / {:.2f};".format(memory, memory32))  # not obfusacted
-        print_s("{:.2f} / {:.2f};".format(memory_o, memory32_o))  # obfusacted
-        print_s("{:.2f} / {:.2f}\n".format(memory_p, memory32_p))  # procentual
+        print_s("{:.2f};{:.2f};".format(memory, memory_o))  # 64-bit
+        print_s("{:.2f};{:.2f};".format(memory32, memory32_o))  # 32-bit
+        print_s("{:.2f};{:.2f}\n".format(memory_p, memory32_p))  # procentual
     print()
 
 def _get_yara_detections(path):
