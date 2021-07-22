@@ -50,5 +50,6 @@ int main(int argc, char *argv[]) {
   file1.close();
   file2.close();
 
-  std::cout << "len: " << lcs(X, Y) << std::endl;
+  auto len = lcs(X, Y);
+  std::cout << "len: " << len << std::endl;
 }
