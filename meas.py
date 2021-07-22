@@ -4,8 +4,9 @@ import os
 import sys
 
 from pefile import PE
+from psutil import Popen
 from pwn import elf, disasm
-from subprocess import Popen, PIPE, DEVNULL
+from subprocess import PIPE, DEVNULL
 
 YARA_RULES_PATH = "/home/user/devel/detection/yara/sigs-git"
 
@@ -258,15 +259,20 @@ def get_compile_time(path):
 
 def _get_memory_usage_increase(path):
     cmd = "/usr/bin/time -f %M " + path
-    # TODO: 10 vals / ulimit
-    ps = Popen(cmd, shell=True, stdout=DEVNULL, stdin=PIPE, stderr=PIPE)
-    try:
-        ps.wait(1)
-    except:
-        pass
-    #TODO: kill child?
-    ps.kill()
-    return int(ps.communicate(timeout=1)[1].split(b"\n")[-2])
+    vals = []
+    while len(vals) < 9:
+        ps = Popen(cmd, shell=True, stdout=DEVNULL, stdin=PIPE, stderr=PIPE)
+        try:
+            ps.wait(1)
+        except:
+            ps.children(True)[1].terminate()
+        vals.append(int(ps.communicate(timeout=1)[1].split(b"\n")[-2]))
+
+    mean = 0
+    for v in vals:
+        mean += v
+    mean /= len(vals)
+    return mean
 
 def get_memory_usage_increase(files):
     print("memory usage increase:")
@@ -287,8 +293,8 @@ def get_memory_usage_increase(files):
         memory32_p = (memory32_o / memory32 - 1) * 100
 
         print_s(prog + ";")  # prog name
-        print_s("{:d} / {:d};".format(memory, memory32))  # not obfusacted
-        print_s("{:d} / {:d};".format(memory_o, memory32_o))  # obfusacted
+        print_s("{:.2f} / {:.2f};".format(memory, memory32))  # not obfusacted
+        print_s("{:.2f} / {:.2f};".format(memory_o, memory32_o))  # obfusacted
         print_s("{:.2f} / {:.2f}\n".format(memory_p, memory32_p))  # procentual
     print()
 
@@ -333,24 +339,24 @@ def get_yara_detections(files):
 
 
 if __name__ == "__main__":
-    # if (len(sys.argv) < 2):
-    #     print("please provide the path")
-    #     exit(-1)
-    # files = get_files(os.path.normpath(sys.argv[1]))
+    if (len(sys.argv) < 2):
+        print("please provide the path")
+        exit(-1)
+    files = get_files(os.path.normpath(sys.argv[1]))
 
     # get_program_size_increase(files)
     # get_longest_common_subsequence(files)
     # get_biggest_basic_block(files)
     # get_instruction_increase(files)
-    get_compile_time("/home/user/devel/examples/coreutils-8.28-ref/src")
-    # print_s("do memory usage increase?\n> ")
-    # if input().startswith("yes"):
-    #     get_memory_usage_increase(files)
+    # get_compile_time("/home/user/devel/examples/coreutils-8.28-ref/src")
+    print_s("do memory usage increase (set ulimit)?\n> ")
+    if input().startswith("yes"):
+        get_memory_usage_increase(files)
     # get_yara_detections(files)
 
-    # print("files:")
-    # for prog in files:
-    #     for ty in files[prog]:
-    #         path = files[prog][ty]
-    #         if type(path) is not autodict:
-    #             print(path)
+    print("files:")
+    for prog in files:
+        for ty in files[prog]:
+            path = files[prog][ty]
+            if type(path) is not autodict:
+                print(path)
