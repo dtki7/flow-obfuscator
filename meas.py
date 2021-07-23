@@ -63,7 +63,7 @@ def update(dict1, dict2):
 def get_files(path):
     files = autodict()
     for f in os.listdir(path):
-        if f == "backup" or ".zip" in f or f == "codesections":
+        if f == "archive" or ".zip" in f or f == "orig_malware":
             continue
         f = path + os.path.sep + f
         if os.path.isdir(f):
@@ -302,7 +302,7 @@ def _get_yara_detections(path):
     detects = []
     for f in os.listdir(YARA_RULES_PATH):
         rule = YARA_RULES_PATH + os.path.sep + f
-        cmd = "yara -w " + rule + " " + path
+        cmd = "yara -w \"" + rule + "\" \"" + path + "\""
         ps = Popen(cmd, shell=True, stdout=PIPE)
         ret = ps.communicate()[0]
         if len(ret) > 0:
@@ -331,9 +331,10 @@ def get_yara_detections(files):
             continue
 
         print_s(prog + ";")  # prog name
-        print_s("{:d} / {:d};".format(len(detects), len(detects32)))  # not obfusacted
-        print_s("{:d} / {:d};".format(len(detects_o), len(detects32_o)))  # obfusacted
+        print_s("{:d};{:d};".format(len(detects), len(detects32)))  # not obfusacted
+        print_s("{:d};{:d};".format(len(detects_o), len(detects32_o)))  # obfusacted
         print_s(set(detects + detects32))  # rule names
+        print_s(";")
         print(set(detects_o + detects32_o))  # rule names
     print()
 
@@ -349,10 +350,10 @@ if __name__ == "__main__":
     # get_biggest_basic_block(files)
     # get_instruction_increase(files)
     # get_compile_time("/home/user/devel/examples/coreutils-8.28-ref/src")
-    print_s("do memory usage increase (set ulimit)?\n> ")
-    if input().startswith("yes"):
-        get_memory_usage_increase(files)
-    # get_yara_detections(files)
+    # print_s("do memory usage increase (set ulimit)?\n> ")
+    # if input().startswith("yes"):
+    #     get_memory_usage_increase(files)
+    get_yara_detections(files)
 
     print("files:")
     for prog in files:

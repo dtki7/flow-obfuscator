@@ -6,7 +6,7 @@ from psutil import Popen
 from random import randint
 from subprocess import PIPE
 
-MODS = "" #  "taskset -c 0 nice -n -20 chrt -f 99 "
+MODS = "taskset -c 0 nice -n -20 chrt -f 99 "
 
 def _extract(hay, needle):
     y = hay.find(needle)
@@ -60,5 +60,5 @@ def bzip2():
 
 
 if __name__ == "__main__":
-    # calc_pi()
+    calc_pi()
     bzip2()
