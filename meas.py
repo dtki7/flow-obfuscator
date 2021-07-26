@@ -1,7 +1,11 @@
 #!/usr/bin/python3
 
+import hashlib
 import os
+import pprint
 import sys
+import time
+import virustotal3.core as vtc
 
 from pefile import PE
 from psutil import Popen
@@ -9,6 +13,9 @@ from pwn import elf, disasm
 from subprocess import PIPE, DEVNULL
 
 YARA_RULES_PATH = "/home/user/devel/detection/yara/sigs-git"
+
+VT_KEY = "0bcb86e4602a3e18921dce945a241f1e8e10026945e32149dee06f53323d82f6"
+VT_RES_PATH = "vt_results"
 
 class autodict(dict):
     def __getitem__(self, name):
@@ -338,6 +345,49 @@ def get_yara_detections(files):
         print(set(detects_o + detects32_o))  # rule names
     print()
 
+def _get_virus_total(f):
+    if type(f) is autodict:
+        return -1
+    stream = open(f, "rb")
+    hash = hashlib.md5(stream.read()).hexdigest()
+    stream.close()
+
+    iface = vtc.Files(VT_KEY)
+    try:
+        info = iface.info_file(hash)
+    except:
+        ident = iface.upload(f)["data"]["id"]
+        while True:
+            time.sleep(60)
+            if vtc.get_analysis(VT_KEY, ident)["data"]["attributes"]["status"] == 'completed':
+                info = iface.info_file(hash)
+                break
+
+    stream = open(VT_RES_PATH + os.path.sep + os.path.basename(f), "w")
+    pprint.pprint(info, stream)
+    stream.close()
+
+    return info["data"]["attributes"]["last_analysis_stats"]["malicious"]
+
+def get_virus_total(files):
+    if not os.path.isdir(VT_RES_PATH):
+        os.makedirs(VT_RES_PATH)
+
+    for prog in files:
+        results = {}
+        for ty in ["gcc", "clang", "opt", "opt-main", "gcc32", "clang32", "opt32", "opt-main32"]:
+            while True:
+                try:
+                    results[ty] = _get_virus_total(files[prog][ty])
+                    break
+                except:
+                    print("exception occurred")
+                    time.sleep(60)
+
+        print_s(prog + ";")  # prog name
+        print_s(results["gcc"] + ";" + results["clang"] + ";" + results["opt"] + ";" + results["opt-main"] + ";")  # 64-bit
+        print_s(results["gcc32"] + ";" + results["clang32"] + ";" + results["opt32"] + ";" + results["opt-main32"] + "\n")  # 32-bit
+
 
 if __name__ == "__main__":
     if (len(sys.argv) < 2):
@@ -353,7 +403,8 @@ if __name__ == "__main__":
     # print_s("do memory usage increase (set ulimit)?\n> ")
     # if input().startswith("yes"):
     #     get_memory_usage_increase(files)
-    get_yara_detections(files)
+    # get_yara_detections(files)
+    get_virus_total(files)
 
     print("files:")
     for prog in files:
