@@ -12,6 +12,8 @@ from psutil import Popen
 from pwn import elf, disasm
 from subprocess import PIPE, DEVNULL
 
+NATIV_C = "cl"
+
 YARA_RULES_PATH = "/home/user/devel/detection/yara/sigs-git"
 
 VT_KEY = "0bcb86e4602a3e18921dce945a241f1e8e10026945e32149dee06f53323d82f6"
@@ -80,10 +82,10 @@ def get_files(path):
                 files[f[f.rfind(os.path.sep) + 1:].replace("-clang", "")]["clang"] = f
             elif f.endswith("-clang32") or f.endswith("-clang32.exe") or f.endswith("-clang32.dll"):
                 files[f[f.rfind(os.path.sep) + 1:].replace("-clang32", "")]["clang32"] = f
-            elif f.endswith("-gcc") or f.endswith("-gcc.exe") or f.endswith("-gcc.dll"):
-                files[f[f.rfind(os.path.sep) + 1:].replace("-gcc", "")]["gcc"] = f
-            elif f.endswith("-gcc32") or f.endswith("-gcc32.exe") or f.endswith("-gcc32.dll"):
-                files[f[f.rfind(os.path.sep) + 1:].replace("-gcc32", "")]["gcc32"] = f
+            elif f.endswith("-" + NATIV_C) or f.endswith("-" + NATIV_C + ".exe") or f.endswith("-" + NATIV_C + ".dll"):
+                files[f[f.rfind(os.path.sep) + 1:].replace("-" + NATIV_C, "")][NATIV_C] = f
+            elif f.endswith("-" + NATIV_C + "32") or f.endswith("-" + NATIV_C + "32.exe") or f.endswith("-" + NATIV_C + "32.dll"):
+                files[f[f.rfind(os.path.sep) + 1:].replace("-" + NATIV_C + "32", "")][NATIV_C + "32"] = f
             elif f.endswith("-opt") or f.endswith("-opt.exe") or f.endswith("-opt.dll"):
                 files[f[f.rfind(os.path.sep) + 1:].replace("-opt", "")]["opt"] = f
             elif f.endswith("-opt32") or f.endswith("-opt32.exe") or f.endswith("-opt32.dll"):
@@ -325,6 +327,7 @@ def get_yara_detections(files):
 
     print("yara detections:")
     for prog in files:
+        print_s(prog + ";")  # prog name
         detects = 0
         detects_o = 0
         detects32 = 0
@@ -337,7 +340,6 @@ def get_yara_detections(files):
         except:
             continue
 
-        print_s(prog + ";")  # prog name
         print_s("{:d};{:d};".format(len(detects), len(detects32)))  # not obfusacted
         print_s("{:d};{:d};".format(len(detects_o), len(detects32_o)))  # obfusacted
         print_s(set(detects + detects32))  # rule names
@@ -373,9 +375,11 @@ def get_virus_total(files):
     if not os.path.isdir(VT_RES_PATH):
         os.makedirs(VT_RES_PATH)
 
+    print("virus total:")
     for prog in files:
+        print_s(prog + ";")  # prog name
         results = {}
-        for ty in ["gcc", "clang", "opt", "opt-main", "gcc32", "clang32", "opt32", "opt-main32"]:
+        for ty in [NATIV_C, "clang", "opt", "opt-main", NATIV_C + "32", "clang32", "opt32", "opt-main32"]:
             while True:
                 try:
                     results[ty] = _get_virus_total(files[prog][ty])
@@ -384,9 +388,8 @@ def get_virus_total(files):
                     print("exception occurred")
                     time.sleep(60)
 
-        print_s(prog + ";")  # prog name
-        print_s(results["gcc"] + ";" + results["clang"] + ";" + results["opt"] + ";" + results["opt-main"] + ";")  # 64-bit
-        print_s(results["gcc32"] + ";" + results["clang32"] + ";" + results["opt32"] + ";" + results["opt-main32"] + "\n")  # 32-bit
+        print_s("{:d};{:d};{:d};{:d};".format(results[NATIV_C], results["clang"], results["opt"], results["opt-main"]))  # 64-bit
+        print_s("{:d};{:d};{:d};{:d}\n".format(results[NATIV_C + "32"], results["clang32"], results["opt32"], results["opt-main32"]))  # 32-bit
 
 
 if __name__ == "__main__":
