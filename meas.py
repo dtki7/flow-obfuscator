@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import hashlib
+import json
 import os
 import pprint
 import sys
@@ -391,6 +392,38 @@ def get_virus_total(files):
         print_s("{:d};{:d};{:d};{:d};".format(results[NATIV_C], results["clang"], results["opt"], results["opt-main"]))  # 64-bit
         print_s("{:d};{:d};{:d};{:d}\n".format(results[NATIV_C + "32"], results["clang32"], results["opt32"], results["opt-main32"]))  # 32-bit
 
+def get_cuckoo(path):
+    results = autodict()
+    for task in os.listdir(path):
+        cur_f = path + os.path.sep + task + os.path.sep + "reports/report.json"
+        if not os.path.isfile(cur_f):
+            continue
+        f = open(cur_f)
+        j = json.load(f)
+        f.close()
+        name = j["target"]["file"]["name"]
+        pos = name.rfind('-')
+        pre = name[:pos]
+        post = name[pos + 1:].replace(".exe", "")
+        if post != "clang" and post != "opt":
+            continue
+
+        api_calls = 0
+        try:
+            for pid in j["behavior"]["apistats"]:
+                for api in j["behavior"]["apistats"][pid]:
+                    api_calls += j["behavior"]["apistats"][pid][api]
+        except:
+            pass
+
+        results[pre][post] = [j["info"]["score"], api_calls]
+
+    for prog in results:
+        if "clang" not in results[prog] or "opt" not in results[prog]:
+            continue
+        print_s(prog + ";")
+        print_s("{:.1f};{:.1f};".format(results[prog]["clang"][0], results[prog]["opt"][0]))  # scores
+        print_s("{:d};{:d}\n".format(results[prog]["clang"][1], results[prog]["opt"][1]))  # calls
 
 if __name__ == "__main__":
     if (len(sys.argv) < 2):
@@ -408,6 +441,7 @@ if __name__ == "__main__":
     #     get_memory_usage_increase(files)
     # get_yara_detections(files)
     get_virus_total(files)
+    # get_cuckoo("/home/user/.cuckoo/storage/analyses")
 
     print("files:")
     for prog in files:
