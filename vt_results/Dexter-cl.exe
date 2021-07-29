@@ -469,7 +469,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 47},
-                         'last_modification_date': 1627491559,
+                         'last_modification_date': 1627498760,
                          'last_submission_date': 1627491467,
                          'magic': 'PE32+ executable for MS Windows (console) '
                                   'Mono/.Net assembly',
@@ -684,7 +684,8 @@
                          'tags': ['64bits',
                                   'peexe',
                                   'assembly',
-                                  'invalid-rich-pe-linker-version'],
+                                  'invalid-rich-pe-linker-version',
+                                  'runtime-modules'],
                          'times_submitted': 1,
                          'tlsh': 'T1D7E24C5A328145FDC83AD634E5F6161BF5A2F4044FA55EEF0121C2461F337D2EA3AB4A',
                          'total_votes': {'harmless': 0, 'malicious': 0},

@@ -474,7 +474,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 6,
                                                  'undetected': 42},
-                         'last_modification_date': 1627483371,
+                         'last_modification_date': 1627490572,
                          'last_submission_date': 1627483188,
                          'magic': 'PE32+ executable for MS Windows (DLL) '
                                   '(console) Mono/.Net assembly',

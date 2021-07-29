@@ -479,7 +479,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 36},
-                         'last_modification_date': 1627480465,
+                         'last_modification_date': 1627529723,
                          'last_submission_date': 1627480316,
                          'magic': 'PE32 executable for MS Windows (GUI) Intel '
                                   '80386 32-bit',
@@ -712,6 +712,10 @@
                                                                                     'value': 'gen27'}],
                                                            'suggested_threat_label': 'trojan.sdbot/ircbot'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'Yomi Hunter': {'category': 'malicious',
+                                                              'malware_classification': ['MALWARE'],
+                                                              'sandbox_name': 'Yomi '
+                                                                              'Hunter'}},
                          'sha1': '6c476a51c8b031181c27e4007568207fa0b19945',
                          'sha256': '7d6b001121ebab5dddff5161d620719bb82b36923969ad77553b06e6271136e2',
                          'size': 208896,

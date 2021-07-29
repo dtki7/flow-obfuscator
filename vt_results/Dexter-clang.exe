@@ -1,5 +1,6 @@
 {'data': {'attributes': {'authentihash': 'e2baadf14b57454236d60307857a4c99520570c3f7f813b8fba5a0667221ffdf',
                          'creation_date': 1626535712,
+                         'first_seen_itw_date': 1602867145,
                          'first_submission_date': 1627491590,
                          'last_analysis_date': 1627491590,
                          'last_analysis_results': {'ALYac': {'category': 'malicious',
@@ -467,7 +468,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 48},
-                         'last_modification_date': 1627491799,
+                         'last_modification_date': 1627499778,
                          'last_submission_date': 1627491590,
                          'magic': 'PE32+ executable for MS Windows (console) '
                                   'Mono/.Net assembly',

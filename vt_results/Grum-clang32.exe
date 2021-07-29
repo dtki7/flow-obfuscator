@@ -1,5 +1,53 @@
 {'data': {'attributes': {'authentihash': 'f9e480ef40714d0ac48e9acc0ebf4bde3ae3919fbdb2fe48c7d5df6affc0b98f',
                          'creation_date': 1626543036,
+                         'crowdsourced_ids_results': [{'alert_context': [{'dest_ip': '209.182.197.194',
+                                                                          'dest_port': 80}],
+                                                       'alert_severity': 'high',
+                                                       'rule_category': 'trojan-activity',
+                                                       'rule_id': '1:20755',
+                                                       'rule_msg': 'MALWARE-CNC '
+                                                                   'Win.Trojan.Krap '
+                                                                   'variant '
+                                                                   'outbound '
+                                                                   'connection',
+                                                       'rule_raw': 'alert tcp '
+                                                                   '$HOME_NET '
+                                                                   'any -> '
+                                                                   '$EXTERNAL_NET '
+                                                                   '$HTTP_PORTS '
+                                                                   '( '
+                                                                   'msg:"MALWARE-CNC '
+                                                                   'Win.Trojan.Krap '
+                                                                   'variant '
+                                                                   'outbound '
+                                                                   'connection"; '
+                                                                   'flow:to_server,established; '
+                                                                   'http_header; '
+                                                                   'content:"User-Agent|3A '
+                                                                   '20|id=",nocase; '
+                                                                   'content:"tick=",distance '
+                                                                   '0,nocase; '
+                                                                   'content:"ver=",distance '
+                                                                   '0,nocase; '
+                                                                   'content:"smtp=",distance '
+                                                                   '0,nocase; '
+                                                                   'content:"task=",distance '
+                                                                   '0,nocase; '
+                                                                   'service:http; '
+                                                                   'reference:url,www.virustotal.com/en/file/18bf1732e9f22502b1b4b1eeb7ebde8249fb7551963a9e1e642efd1add5fde15/analysis/; '
+                                                                   'classtype:trojan-activity; '
+                                                                   'sid:20755; '
+                                                                   'rev:7; )',
+                                                       'rule_references': ['https://www.virustotal.com/en/file/18bf1732e9f22502b1b4b1eeb7ebde8249fb7551963a9e1e642efd1add5fde15/analysis/'],
+                                                       'rule_source': 'Snort '
+                                                                      'registered '
+                                                                      'user '
+                                                                      'ruleset',
+                                                       'rule_url': 'https://www.snort.org/downloads/#rule-downloads'}],
+                         'crowdsourced_ids_stats': {'high': 1,
+                                                    'info': 0,
+                                                    'low': 0,
+                                                    'medium': 0},
                          'first_submission_date': 1627490915,
                          'last_analysis_date': 1627490915,
                          'last_analysis_results': {'ALYac': {'category': 'malicious',
@@ -464,7 +512,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 45},
-                         'last_modification_date': 1627490999,
+                         'last_modification_date': 1627501457,
                          'last_submission_date': 1627490915,
                          'magic': 'PE32 executable for MS Windows (console) '
                                   'Intel 80386 32-bit',
@@ -595,9 +643,23 @@
                          'reputation': 0,
                          'sha1': 'c8ce6bfae9510c710380b8c0eb738d8eeb7af6ba',
                          'sha256': '55b9c9c83222b11fc1ada80596722638ee0234da072fe58565f7638426dace99',
+                         'sigma_analysis_stats': {'critical': 0,
+                                                  'high': 1,
+                                                  'low': 0,
+                                                  'medium': 4},
+                         'sigma_analysis_summary': {'Sigma Integrated Rule Set (GitHub)': {'critical': 0,
+                                                                                           'high': 1,
+                                                                                           'low': 0,
+                                                                                           'medium': 4}},
                          'size': 47104,
                          'ssdeep': '768:uk9JG1EcW4Qk5i/rRcWx3w1jzKG6zj9//FEJuJah/NTxeu:59JG1EcW4Qr9Nw1vKL9XCJuJiv',
-                         'tags': ['peexe', 'invalid-rich-pe-linker-version'],
+                         'tags': ['peexe',
+                                  'invalid-rich-pe-linker-version',
+                                  'direct-cpu-clock-access',
+                                  'checks-network-adapters',
+                                  'long-sleeps',
+                                  'runtime-modules',
+                                  'persistence'],
                          'times_submitted': 1,
                          'tlsh': 'T1E423EA15EB42F4BAEAD744B0611FE7FF4A22A530DC294C27F3800EA57F578AD6404B66',
                          'total_votes': {'harmless': 0, 'malicious': 0},

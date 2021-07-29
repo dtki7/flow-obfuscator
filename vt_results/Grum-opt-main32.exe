@@ -513,7 +513,7 @@
                                                  'timeout': 1,
                                                  'type-unsupported': 5,
                                                  'undetected': 45},
-                         'last_modification_date': 1627491456,
+                         'last_modification_date': 1627501092,
                          'last_submission_date': 1627491223,
                          'magic': 'PE32 executable for MS Windows (console) '
                                   'Intel 80386 32-bit',
