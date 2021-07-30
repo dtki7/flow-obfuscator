@@ -13,7 +13,7 @@ from psutil import Popen
 from pwn import elf, disasm
 from subprocess import PIPE, DEVNULL
 
-NATIV_C = "cl"
+NATIV_C = "gcc"
 
 YARA_RULES_PATH = "/home/user/devel/detection/yara/sigs-git"
 
@@ -351,24 +351,31 @@ def get_yara_detections(files):
 def _get_virus_total(f):
     if type(f) is autodict:
         return -1
-    stream = open(f, "rb")
-    hash = hashlib.md5(stream.read()).hexdigest()
-    stream.close()
+    target = VT_RES_PATH + os.path.sep + os.path.basename(f)
 
-    iface = vtc.Files(VT_KEY)
-    try:
-        info = iface.info_file(hash)
-    except:
-        ident = iface.upload(f)["data"]["id"]
-        while True:
-            time.sleep(60)
-            if vtc.get_analysis(VT_KEY, ident)["data"]["attributes"]["status"] == 'completed':
-                info = iface.info_file(hash)
-                break
+    if not os.path.isfile(target):
+        stream = open(f, "rb")
+        hash = hashlib.md5(stream.read()).hexdigest()
+        stream.close()
 
-    stream = open(VT_RES_PATH + os.path.sep + os.path.basename(f), "w")
-    pprint.pprint(info, stream)
-    stream.close()
+        iface = vtc.Files(VT_KEY)
+        try:
+            info = iface.info_file(hash)
+        except:
+            ident = iface.upload(f)["data"]["id"]
+            while True:
+                time.sleep(60)
+                if vtc.get_analysis(VT_KEY, ident)["data"]["attributes"]["status"] == 'completed':
+                    info = iface.info_file(hash)
+                    break
+
+        stream = open(target, "w")
+        pprint.pprint(info, stream)
+        stream.close()
+    else:
+        stream = open(target)
+        info = json(stream)
+        stream.close()
 
     return info["data"]["attributes"]["last_analysis_stats"]["malicious"]
 
