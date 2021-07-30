@@ -476,7 +476,7 @@
                                                  'timeout': 7,
                                                  'type-unsupported': 5,
                                                  'undetected': 35},
-                         'last_modification_date': 1627497197,
+                         'last_modification_date': 1627581312,
                          'last_submission_date': 1627489753,
                          'magic': 'PE32 executable for MS Windows (console) '
                                   'Intel 80386 32-bit',
@@ -702,6 +702,9 @@
                                                                                     'value': 'hktl'}],
                                                            'suggested_threat_label': 'trojan.zusy/mimikatz'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': '4db8f27cd0ea22799c6ef7831e3fca27863f2c53',
                          'sha256': 'db3e4eab49687a28819daa939411a219df5440e6828e9b1576696053d6da2d14',
                          'signature_info': {'copyright': 'Copyright (c) 2007 - '

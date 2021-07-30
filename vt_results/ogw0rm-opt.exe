@@ -475,7 +475,7 @@
                                                  'timeout': 1,
                                                  'type-unsupported': 5,
                                                  'undetected': 46},
-                         'last_modification_date': 1627502741,
+                         'last_modification_date': 1627570552,
                          'last_submission_date': 1627479578,
                          'magic': 'PE32+ executable for MS Windows (console) '
                                   'Mono/.Net assembly',
@@ -659,6 +659,9 @@
                                                                                     'value': 'snjm'}],
                                                            'suggested_threat_label': 'trojan.snjm'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': '2fcb2fdd2bd9dc43704ab8858562a8b4b4aab835',
                          'sha256': 'b21d28a53e310c43e577814813ccc5138234802f764be6bd3a6d938136e8b299',
                          'size': 115200,

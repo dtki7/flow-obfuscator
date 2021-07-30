@@ -465,7 +465,7 @@
                                                  'timeout': 2,
                                                  'type-unsupported': 6,
                                                  'undetected': 59},
-                         'last_modification_date': 1627555216,
+                         'last_modification_date': 1627562413,
                          'last_submission_date': 1627555112,
                          'magic': 'PE32 executable for MS Windows (DLL) (GUI) '
                                   'Intel 80386 32-bit',

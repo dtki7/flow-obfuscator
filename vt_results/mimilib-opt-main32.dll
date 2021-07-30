@@ -468,7 +468,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 46},
-                         'last_modification_date': 1627492294,
+                         'last_modification_date': 1627576016,
                          'last_submission_date': 1627484899,
                          'magic': 'PE32 executable for MS Windows (DLL) '
                                   '(console) Intel 80386 32-bit',
@@ -678,6 +678,9 @@
                                                                                     'value': 'hktl'}],
                                                            'suggested_threat_label': 'hacktool.mimikatz/hktl'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': 'abce6a17ef0961f11d1a2ad67178f6d208cd0bee',
                          'sha256': 'a5f9a3f69de7c0e30b9f9e2a921a63cb9fb4b931545cb191872ef64f3b8350bb',
                          'signature_info': {'copyright': 'Copyright (c) 2007 - '

@@ -1,5 +1,6 @@
 {'data': {'attributes': {'authentihash': 'a48e6703059e1338d8cf540a977e75045a4ae03af8a4262d6afff50bbd96f59a',
                          'creation_date': 1626535873,
+                         'first_seen_itw_date': 1613980903,
                          'first_submission_date': 1627545665,
                          'last_analysis_date': 1627545665,
                          'last_analysis_results': {'ALYac': {'category': 'malicious',
@@ -480,7 +481,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 35},
-                         'last_modification_date': 1627545832,
+                         'last_modification_date': 1627555242,
                          'last_submission_date': 1627545665,
                          'magic': 'PE32 executable for MS Windows (console) '
                                   'Intel 80386 32-bit',

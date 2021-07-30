@@ -481,7 +481,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 41},
-                         'last_modification_date': 1627487304,
+                         'last_modification_date': 1627571154,
                          'last_submission_date': 1627479888,
                          'magic': 'PE32 executable for MS Windows (console) '
                                   'Intel 80386 32-bit',
@@ -647,6 +647,9 @@
                                                                                     'value': 'snjm'}],
                                                            'suggested_threat_label': 'trojan.snjm'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': '821a3af014a629888e8c3da1362e90dba7bff442',
                          'sha256': '87fc284827b16a6e4ba92f16f9aa9e6bde93ba5f1936d8cfea5e9cd5a17ee62c',
                          'size': 141312,

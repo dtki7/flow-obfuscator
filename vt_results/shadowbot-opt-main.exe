@@ -465,7 +465,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 50},
-                         'last_modification_date': 1627502501,
+                         'last_modification_date': 1627572577,
                          'last_submission_date': 1627481298,
                          'magic': 'PE32+ executable for MS Windows (GUI) '
                                   'Mono/.Net assembly',
@@ -680,6 +680,9 @@
                                                                                     'value': 'artemis'}],
                                                            'suggested_threat_label': 'trojan.artemis'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': 'efb8fb93095f1f40d72883ae7749ff10ea09e29f',
                          'sha256': '57af7860a5e3f4a8f0111da2d33fdf4ee2cea32109b002560814efd0ad8f6776',
                          'size': 120832,

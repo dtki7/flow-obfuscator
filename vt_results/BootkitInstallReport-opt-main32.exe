@@ -1,5 +1,38 @@
 {'data': {'attributes': {'authentihash': 'fe005757c0a083545786e95e21635b70b2e5f7149808ccca796624206aa29deb',
                          'creation_date': 1626617452,
+                         'crowdsourced_ids_results': [{'alert_severity': 'low',
+                                                       'rule_category': 'not-suspicious',
+                                                       'rule_id': '119:1',
+                                                       'rule_msg': '(http_inspect) '
+                                                                   'ascii '
+                                                                   'encoding',
+                                                       'rule_raw': 'alert ( '
+                                                                   'gid:119; '
+                                                                   'sid:1; '
+                                                                   'rev: 2; '
+                                                                   'msg:"(http_inspect) '
+                                                                   'ascii '
+                                                                   'encoding"; '
+                                                                   'metadata: '
+                                                                   'rule-type '
+                                                                   'preproc; '
+                                                                   'reference:cve,2009-1535; '
+                                                                   'reference:url,www.microsoft.com/technet/security/bulletin/ms09-020.mspx; '
+                                                                   'reference:url,docs.idsresearch.org/http_ids_evasions.pdf; '
+                                                                   'service:http; '
+                                                                   'classtype:not-suspicious;)',
+                                                       'rule_references': ['https://cve.mitre.org/cgi-bin/cvename.cgi?name=2009-1535',
+                                                                           'https://www.microsoft.com/technet/security/bulletin/ms09-020.mspx',
+                                                                           'https://docs.idsresearch.org/http_ids_evasions.pdf'],
+                                                       'rule_source': 'Snort '
+                                                                      'registered '
+                                                                      'user '
+                                                                      'ruleset',
+                                                       'rule_url': 'https://www.snort.org/downloads/#rule-downloads'}],
+                         'crowdsourced_ids_stats': {'high': 0,
+                                                    'info': 0,
+                                                    'low': 1,
+                                                    'medium': 0},
                          'first_submission_date': 1627554682,
                          'last_analysis_date': 1627554682,
                          'last_analysis_results': {'ALYac': {'category': 'malicious',
@@ -462,7 +495,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 46},
-                         'last_modification_date': 1627554796,
+                         'last_modification_date': 1627627161,
                          'last_submission_date': 1627554682,
                          'magic': 'PE32 executable for MS Windows (GUI) Intel '
                                   '80386 32-bit',
@@ -544,11 +577,22 @@
                                                                                     'value': 'doris'}],
                                                            'suggested_threat_label': 'trojan.doris'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'Yomi Hunter': {'category': 'harmless',
+                                                              'malware_classification': ['CLEAN'],
+                                                              'sandbox_name': 'Yomi '
+                                                                              'Hunter'}},
                          'sha1': '387752e7eee3846fa2b81df2128afb1a459eb053',
                          'sha256': 'f1aa95e2a25fc0c8f3015e42d347564e38393bea46fb8e04473e0dd646823a21',
                          'size': 6144,
                          'ssdeep': '96:B4Z3zoZipNVBzEQpH4YoKkM3LI1JbebSwI:Z4zbN4hGL1',
-                         'tags': ['peexe'],
+                         'tags': ['peexe',
+                                  'direct-cpu-clock-access',
+                                  'checks-network-adapters',
+                                  'long-sleeps',
+                                  'runtime-modules',
+                                  'nxdomain',
+                                  'cve-2009-1535',
+                                  'exploit'],
                          'times_submitted': 1,
                          'tlsh': 'T111C16192F7C29371CE4F497A6A4F763F17135533039848E3DA8159C42F86EF2293AA80',
                          'total_votes': {'harmless': 0, 'malicious': 0},

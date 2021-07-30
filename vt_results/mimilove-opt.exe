@@ -442,7 +442,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 58},
-                         'last_modification_date': 1627496856,
+                         'last_modification_date': 1627579989,
                          'last_submission_date': 1627489568,
                          'magic': 'PE32+ executable for MS Windows (console) '
                                   'Mono/.Net assembly',
@@ -665,6 +665,9 @@
                                                                                     'value': 'mimikatz64'}],
                                                            'suggested_threat_label': 'trojan.hktl/mimikatz'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': '45ce79966cc8e7f44ea6bed102289e95a3bc90af',
                          'sha256': '9666c04b336a52bd7fea93af37e8f614f194dfcc08920c618f8cde7488cbe227',
                          'signature_info': {'copyright': 'Copyright (c) 2007 - '

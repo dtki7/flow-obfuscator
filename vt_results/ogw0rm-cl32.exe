@@ -477,7 +477,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 41},
-                         'last_modification_date': 1627489658,
+                         'last_modification_date': 1627574309,
                          'last_submission_date': 1627482173,
                          'magic': 'PE32 executable for MS Windows (console) '
                                   'Intel 80386 32-bit',
@@ -636,6 +636,9 @@
                                                                                     'value': 'socks'}],
                                                            'suggested_threat_label': 'trojan.snjm/socks'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': '59d9c21f28f39ac51b3b42b40410a73d6b431dd9',
                          'sha256': 'f8905adeddd14aff185be99da26923c7606d749a5c37050255b11e0e67c21342',
                          'size': 86528,

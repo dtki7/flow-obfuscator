@@ -477,7 +477,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 33},
-                         'last_modification_date': 1627494123,
+                         'last_modification_date': 1627574690,
                          'last_submission_date': 1627482910,
                          'magic': 'PE32 executable for MS Windows (GUI) Intel '
                                   '80386 32-bit',
@@ -665,6 +665,9 @@
                                                                                     'value': 'ircbot'}],
                                                            'suggested_threat_label': 'trojan.ircbot'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': '9876cb031997af8378b9a51febf6ab35905ce77b',
                          'sha256': '638a1f3fde43178aa65b992e66ca97f7fdaa6967e9cbd4b4e954a3d6bbb7c663',
                          'size': 99328,

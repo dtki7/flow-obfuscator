@@ -465,7 +465,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 46},
-                         'last_modification_date': 1627502726,
+                         'last_modification_date': 1627574605,
                          'last_submission_date': 1627482664,
                          'magic': 'PE32+ executable for MS Windows (GUI) '
                                   'Mono/.Net assembly',
@@ -678,6 +678,9 @@
                                                                                     'value': 'artemis'}],
                                                            'suggested_threat_label': 'trojan.msnworm/ircbot'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': '3f62a34b2c39bd74529b401e5bf13dcbb7424565',
                          'sha256': 'ee88904b6448c1cb5c0f47e8138aa349fafa6a9150c912829971d810f1b1a60f',
                          'size': 118272,

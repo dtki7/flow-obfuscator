@@ -725,7 +725,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 12,
                                                  'undetected': 55},
-                         'last_modification_date': 1627468361,
+                         'last_modification_date': 1627475564,
                          'last_submission_date': 1627468277,
                          'magic': 'ELF 64-bit LSB executable, x86-64, version '
                                   '1 (SYSV), dynamically linked (uses shared '

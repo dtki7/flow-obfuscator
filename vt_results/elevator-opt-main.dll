@@ -456,7 +456,7 @@
                                                  'timeout': 1,
                                                  'type-unsupported': 6,
                                                  'undetected': 63},
-                         'last_modification_date': 1627579100,
+                         'last_modification_date': 1627586301,
                          'last_submission_date': 1627578899,
                          'magic': 'PE32+ executable for MS Windows (DLL) (GUI) '
                                   'Mono/.Net assembly',

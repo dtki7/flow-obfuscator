@@ -480,7 +480,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 48},
-                         'last_modification_date': 1627546698,
+                         'last_modification_date': 1627553873,
                          'last_submission_date': 1627546535,
                          'magic': 'PE32+ executable for MS Windows (GUI) '
                                   'Mono/.Net assembly',
@@ -748,7 +748,8 @@
                                   'direct-cpu-clock-access',
                                   'checks-network-adapters',
                                   'runtime-modules',
-                                  'persistence'],
+                                  'persistence',
+                                  'nxdomain'],
                          'times_submitted': 1,
                          'tlsh': 'T1B6147C5AB3A400F9D1679178CC511A02F376B85607709ADF07A047B6EF277E0AD3EB61',
                          'total_votes': {'harmless': 0, 'malicious': 0},

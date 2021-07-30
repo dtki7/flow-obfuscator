@@ -498,7 +498,7 @@
                                                  'timeout': 1,
                                                  'type-unsupported': 5,
                                                  'undetected': 36},
-                         'last_modification_date': 1627496341,
+                         'last_modification_date': 1627579396,
                          'last_submission_date': 1627488894,
                          'magic': 'PE32 executable for MS Windows (console) '
                                   'Intel 80386 32-bit',
@@ -1189,6 +1189,11 @@
                                                                                     'value': 'mimikatz'}],
                                                            'suggested_threat_label': 'hacktool.mimikatz'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'malicious',
+                                                       'confidence': 50,
+                                                       'malware_classification': ['MALWARE'],
+                                                       'malware_names': ['mimikatz'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': 'b810063d4a71de7f135fd894dac5aef5330d313c',
                          'sha256': '1061264a49eb90d4f690386c94a91d8edafc3b85f1272f0920122d77d6c4a40f',
                          'signature_info': {'copyright': 'Copyright (c) 2007 - '

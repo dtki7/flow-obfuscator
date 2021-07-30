@@ -478,7 +478,7 @@
                                                  'timeout': 4,
                                                  'type-unsupported': 6,
                                                  'undetected': 42},
-                         'last_modification_date': 1627490854,
+                         'last_modification_date': 1627574824,
                          'last_submission_date': 1627483432,
                          'magic': 'PE32+ executable for MS Windows (DLL) '
                                   '(console) Mono/.Net assembly',
@@ -724,6 +724,9 @@
                                                                                     'value': 'hktl'}],
                                                            'suggested_threat_label': 'hacktool.mimikatz/mimikatz64'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': '2eedb882f77945879d9a5aeff0843bc32cffa018',
                          'sha256': '4018431d35c974367f33539c66eb0a5efdb6252b01a37af2760a067d23ce9ce3',
                          'signature_info': {'copyright': 'Copyright (c) 2007 - '

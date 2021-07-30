@@ -489,7 +489,7 @@
                                                  'timeout': 2,
                                                  'type-unsupported': 5,
                                                  'undetected': 32},
-                         'last_modification_date': 1627549328,
+                         'last_modification_date': 1627556520,
                          'last_submission_date': 1627549166,
                          'magic': 'PE32 executable for MS Windows (GUI) Intel '
                                   '80386 32-bit',
@@ -739,7 +739,8 @@
                                   'checks-network-adapters',
                                   'long-sleeps',
                                   'runtime-modules',
-                                  'persistence'],
+                                  'persistence',
+                                  'nxdomain'],
                          'times_submitted': 1,
                          'tlsh': 'T10F148D10B481D0B2DD6324B304EEE37A8A29B6304B618DCF97580EF86F756D1B635B67',
                          'total_votes': {'harmless': 0, 'malicious': 0},

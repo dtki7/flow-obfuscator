@@ -460,7 +460,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 55},
-                         'last_modification_date': 1627497368,
+                         'last_modification_date': 1627581369,
                          'last_submission_date': 1627490058,
                          'magic': 'PE32 executable for MS Windows (console) '
                                   'Intel 80386 32-bit',
@@ -647,6 +647,9 @@
                                                                                     'value': 'hktl'}],
                                                            'suggested_threat_label': 'trojan.mimikatz/mimilove'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': 'b0da0d81d061ea09fd7a5073d3ec175e16f70b51',
                          'sha256': '7f4287ec1f4a1d3e511b098d8a4df8f9bb933f060314f941362cb90e5ebad267',
                          'signature_info': {'copyright': 'Copyright (c) 2007 - '

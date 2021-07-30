@@ -458,7 +458,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 56},
-                         'last_modification_date': 1627497635,
+                         'last_modification_date': 1627580776,
                          'last_submission_date': 1627490182,
                          'magic': 'PE32 executable for MS Windows (console) '
                                   'Intel 80386 32-bit',
@@ -651,6 +651,9 @@
                                                                                     'value': 'hktl'}],
                                                            'suggested_threat_label': 'trojan.mimikatz/hktl'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': '139dae1ed00fe0b61bed2522c9129881cbe260c4',
                          'sha256': '8272ed6a07f74e785ed48bccd070d9c44bba73cca918ee4bd28dd6b9d1759d5b',
                          'signature_info': {'copyright': 'Copyright (c) 2007 - '

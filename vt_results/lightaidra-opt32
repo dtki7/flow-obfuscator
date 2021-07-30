@@ -819,7 +819,7 @@
                                                  'timeout': 4,
                                                  'type-unsupported': 12,
                                                  'undetected': 50},
-                         'last_modification_date': 1627479351,
+                         'last_modification_date': 1627486550,
                          'last_submission_date': 1627479149,
                          'magic': 'ELF 32-bit LSB executable, Intel 80386, '
                                   'version 1 (SYSV), dynamically linked (uses '

@@ -474,7 +474,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 50},
-                         'last_modification_date': 1627489336,
+                         'last_modification_date': 1627574305,
                          'last_submission_date': 1627481928,
                          'magic': 'PE32+ executable for MS Windows (console) '
                                   'Mono/.Net assembly',
@@ -652,6 +652,9 @@
                                                                                     'value': 'socks'}],
                                                            'suggested_threat_label': 'trojan.snjm/socks'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': '3d0f53445e63744f6d70ca505a86f90a279c0d2a',
                          'sha256': '8cab8af6e0bd97fc6d88775de6dad0a91ed7b6f0b239948736044c548b4e14b4',
                          'size': 101376,
