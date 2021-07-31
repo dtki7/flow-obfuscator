@@ -467,7 +467,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 6,
                                                  'undetected': 54},
-                         'last_modification_date': 1627576258,
+                         'last_modification_date': 1627665709,
                          'last_submission_date': 1627568861,
                          'magic': 'PE32+ executable for MS Windows (DLL) (GUI) '
                                   'Mono/.Net assembly',
@@ -678,6 +678,9 @@
                                                                                     'value': 'mydoom'}],
                                                            'suggested_threat_label': 'razy/mydoom'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': '3dd766f7c0976deed4d0cfe619623ea7f8b3d060',
                          'sha256': '0fd374b1f4323273e4a5f9c665f24cc864a969b33af2b1be5c835c4163432d80',
                          'size': 96768,

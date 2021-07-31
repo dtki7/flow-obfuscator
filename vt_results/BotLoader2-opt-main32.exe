@@ -471,7 +471,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 42},
-                         'last_modification_date': 1627560702,
+                         'last_modification_date': 1627647821,
                          'last_submission_date': 1627553336,
                          'magic': 'PE32 executable for MS Windows (GUI) Intel '
                                   '80386 32-bit',
@@ -532,6 +532,9 @@
                                                                                     'value': 'carberpplugin'}],
                                                            'suggested_threat_label': 'trojan.carberpplugin'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': '758f1dbc09c97de60d445eca6306ef6aedab0a07',
                          'sha256': '87f33d31a612afaeb839659b808e860623562ee359ecadfe5c3969080eaf44ea',
                          'size': 112640,

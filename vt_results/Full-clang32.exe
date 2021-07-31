@@ -474,7 +474,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 37},
-                         'last_modification_date': 1627562742,
+                         'last_modification_date': 1627646690,
                          'last_submission_date': 1627552211,
                          'magic': 'PE32 executable for MS Windows (GUI) Intel '
                                   '80386 32-bit',
@@ -539,6 +539,9 @@
                                                                                     'value': 'carberpplugin'}],
                                                            'suggested_threat_label': 'trojan.bigakt/carberp'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': '0a9923f5f493cc93f065184071bd78ca36ffb661',
                          'sha256': '0e52fcc4bd039a9a614d92030b16784095aea71eafc1fa99690731eca2d4e551',
                          'size': 389632,

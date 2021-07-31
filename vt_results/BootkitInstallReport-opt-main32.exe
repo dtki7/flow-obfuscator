@@ -495,7 +495,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 46},
-                         'last_modification_date': 1627627161,
+                         'last_modification_date': 1627648359,
                          'last_submission_date': 1627554682,
                          'magic': 'PE32 executable for MS Windows (GUI) Intel '
                                   '80386 32-bit',
@@ -577,7 +577,10 @@
                                                                                     'value': 'doris'}],
                                                            'suggested_threat_label': 'trojan.doris'},
                          'reputation': 0,
-                         'sandbox_verdicts': {'Yomi Hunter': {'category': 'harmless',
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'},
+                                              'Yomi Hunter': {'category': 'harmless',
                                                               'malware_classification': ['CLEAN'],
                                                               'sandbox_name': 'Yomi '
                                                                               'Hunter'}},

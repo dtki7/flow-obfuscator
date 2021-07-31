@@ -476,7 +476,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 30},
-                         'last_modification_date': 1627614157,
+                         'last_modification_date': 1627653763,
                          'last_submission_date': 1627563460,
                          'magic': 'PE32 executable for MS Windows (GUI) Intel '
                                   '80386 32-bit',
@@ -706,7 +706,10 @@
                                                                                     'value': 'rbot'}],
                                                            'suggested_threat_label': 'trojan.sdbot/ircbot'},
                          'reputation': 0,
-                         'sandbox_verdicts': {'NSFOCUS POMA': {'category': 'malicious',
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'},
+                                              'NSFOCUS POMA': {'category': 'malicious',
                                                                'malware_classification': ['MALWARE'],
                                                                'sandbox_name': 'NSFOCUS '
                                                                                'POMA'}},

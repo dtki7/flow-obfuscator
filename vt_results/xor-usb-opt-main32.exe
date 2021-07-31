@@ -463,7 +463,7 @@
                                                  'timeout': 2,
                                                  'type-unsupported': 5,
                                                  'undetected': 49},
-                         'last_modification_date': 1627581942,
+                         'last_modification_date': 1627666859,
                          'last_submission_date': 1627574493,
                          'magic': 'PE32 executable for MS Windows (console) '
                                   'Intel 80386 32-bit',
@@ -559,6 +559,13 @@
                                                                                     'value': 'xqyezgn'}],
                                                            'suggested_threat_label': 'trojan.xqyezgn'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'},
+                                              'Yomi Hunter': {'category': 'malicious',
+                                                              'malware_classification': ['MALWARE'],
+                                                              'sandbox_name': 'Yomi '
+                                                                              'Hunter'}},
                          'sha1': '7dc850e85c0e7c1939d1a0c11c97f6ddf046d5c4',
                          'sha256': '20d6bea173e0e641d2436306707d549abb8ce5682e7add24f1a63a3df3c117d6',
                          'size': 36864,

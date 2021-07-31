@@ -462,7 +462,7 @@
                                                  'timeout': 1,
                                                  'type-unsupported': 5,
                                                  'undetected': 47},
-                         'last_modification_date': 1627584603,
+                         'last_modification_date': 1627668121,
                          'last_submission_date': 1627577125,
                          'magic': 'PE32 executable for MS Windows (DLL) (GUI) '
                                   'Intel 80386 32-bit',
@@ -750,6 +750,9 @@
                                                                                     'value': 'shellcode'}],
                                                            'suggested_threat_label': 'trojan.shellcode'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': '7bbb1ce78dda1410f6baf3952621b098b57146c2',
                          'sha256': 'ec5ed252e2a83cb5e5e7e92b36d10e0dc7f63fd7528bac1c515440822821952e',
                          'size': 284160,

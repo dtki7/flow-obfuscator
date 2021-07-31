@@ -454,7 +454,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 69},
-                         'last_modification_date': 1627558248,
+                         'last_modification_date': 1627646027,
                          'last_submission_date': 1627549901,
                          'magic': 'PE32+ executable for MS Windows (console) '
                                   'Mono/.Net assembly',
@@ -639,6 +639,9 @@
                                                    'virtual_size': 1640}],
                                      'timestamp': 1626602574},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': 'ed3ab4c40b284deb158561d3ed5b8fa4bfb8bc74',
                          'sha256': 'd2983d7edb270268d82af65c2720162c993fb64d05bba6566a629868444b3b6e',
                          'size': 143872,

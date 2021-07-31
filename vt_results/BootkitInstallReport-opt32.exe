@@ -450,7 +450,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 43},
-                         'last_modification_date': 1627561836,
+                         'last_modification_date': 1627648357,
                          'last_submission_date': 1627554498,
                          'magic': 'PE32 executable for MS Windows (GUI) Intel '
                                   '80386 32-bit',
@@ -540,6 +540,9 @@
                                                                                     'value': 'ayseaap'}],
                                                            'suggested_threat_label': 'trojan.ayseaap'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': 'f7563de169a061ef17dc81a2d275f9832319f513',
                          'sha256': '0f77d1087fc1413e2dfb770533183743bb384840bdc1cf6d0d8abfefa2e53a2a',
                          'size': 27136,

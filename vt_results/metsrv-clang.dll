@@ -466,7 +466,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 6,
                                                  'undetected': 50},
-                         'last_modification_date': 1627583966,
+                         'last_modification_date': 1627666977,
                          'last_submission_date': 1627576633,
                          'magic': 'PE32+ executable for MS Windows (DLL) (GUI) '
                                   'Mono/.Net assembly',
@@ -771,6 +771,9 @@
                                                                                     'value': 'shellcode'}],
                                                            'suggested_threat_label': 'trojan.shellcode'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': '4ecb37d4d5915684d6846eef15ce37eb092a6469',
                          'sha256': '149107e635f958459236b251edaece51ed010e7bf3800732e4c8fe802da148f2',
                          'size': 256512,

@@ -456,7 +456,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 65},
-                         'last_modification_date': 1627571619,
+                         'last_modification_date': 1627654741,
                          'last_submission_date': 1627564319,
                          'magic': 'PE32 executable for MS Windows (console) '
                                   'Intel 80386 32-bit',
@@ -623,6 +623,13 @@
                                                    'virtual_size': 4056}],
                                      'timestamp': 1626602190},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'},
+                                              'Yomi Hunter': {'category': 'malicious',
+                                                              'malware_classification': ['MALWARE'],
+                                                              'sandbox_name': 'Yomi '
+                                                                              'Hunter'}},
                          'sha1': 'a207f2373e2cde552c16cb4e6cc92c7b6dfda5d0',
                          'sha256': '5c0581856d25eda877dc4b0025702f4a314c1ad7460329247e25427f6308e3eb',
                          'size': 112640,

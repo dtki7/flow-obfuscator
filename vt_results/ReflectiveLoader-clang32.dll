@@ -477,7 +477,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 6,
                                                  'undetected': 61},
-                         'last_modification_date': 1627565704,
+                         'last_modification_date': 1627650093,
                          'last_submission_date': 1627558427,
                          'magic': 'PE32 executable for MS Windows (DLL) (GUI) '
                                   'Intel 80386 32-bit',
@@ -632,6 +632,9 @@
                                                    'virtual_size': 3472}],
                                      'timestamp': 1626605623},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': 'efcbd5a764679b3883615ca104a722354448e078',
                          'sha256': '21167002205287b06793b0d1c9d64c41129492c225497edcef2e2330c4592d1f',
                          'size': 73728,

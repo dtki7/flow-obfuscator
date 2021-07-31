@@ -465,7 +465,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 6,
                                                  'undetected': 58},
-                         'last_modification_date': 1627563599,
+                         'last_modification_date': 1627649151,
                          'last_submission_date': 1627556212,
                          'magic': 'PE32 executable for MS Windows (DLL) (GUI) '
                                   'Intel 80386 32-bit',
@@ -526,6 +526,9 @@
                                                                                     'value': 'carberpplugin'}],
                                                            'suggested_threat_label': 'downloader.carberpplugin'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': '90b21fdf04caa122cc5f496c2ecc96b74a4f6c96',
                          'sha256': '40411c630f3e2c31cd553706c7555676e3acbd66c7fc91e2cb79da9966f9e183',
                          'size': 107008,
