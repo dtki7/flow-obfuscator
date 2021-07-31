@@ -456,7 +456,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 62},
-                         'last_modification_date': 1627636446,
+                         'last_modification_date': 1627728168,
                          'last_submission_date': 1627636376,
                          'magic': 'PE32 executable for MS Windows (console) '
                                   'Intel 80386 32-bit',
@@ -621,6 +621,9 @@
                                                                                         'value': 'trojan'}],
                                                            'suggested_threat_label': 'trojan.'},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': 'e8845428ca4db6206fc85aa359e717db93957094',
                          'sha256': '4c8e5ca3b166aba430a8baf88a225a9444d773209395d36ec0a45e869264dbf2',
                          'size': 218112,

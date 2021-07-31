@@ -454,7 +454,7 @@
                                                  'timeout': 0,
                                                  'type-unsupported': 5,
                                                  'undetected': 66},
-                         'last_modification_date': 1627635092,
+                         'last_modification_date': 1627726669,
                          'last_submission_date': 1627634993,
                          'magic': 'PE32 executable for MS Windows (console) '
                                   'Intel 80386 32-bit',
@@ -624,6 +624,9 @@
                                                    'virtual_size': 6492}],
                                      'timestamp': 1626527633},
                          'reputation': 0,
+                         'sandbox_verdicts': {'C2AE': {'category': 'undetected',
+                                                       'malware_classification': ['UNKNOWN_VERDICT'],
+                                                       'sandbox_name': 'C2AE'}},
                          'sha1': '3464fc5aba2d31a4594bacc42f39844dbc063b2a',
                          'sha256': '09f2dcc371350931628750684e512db20d8f143a7a11565b8d196d6d8e9ba7d9',
                          'size': 244736,
