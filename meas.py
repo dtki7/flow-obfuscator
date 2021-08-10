@@ -15,7 +15,7 @@ from subprocess import PIPE, DEVNULL
 
 NATIV_C = "gcc"
 
-YARA_RULES_PATH = "/home/user/devel/detection/yara/sigs-git"
+YARA_RULES_PATH = "/home/user/devel/detection/yara/signator/gathered/no_size"
 
 VT_KEY = "0bcb86e4602a3e18921dce945a241f1e8e10026945e32149dee06f53323d82f6"
 VT_RES_PATH = "vt_results"
@@ -309,6 +309,9 @@ def get_memory_usage_increase(files):
     print()
 
 def _get_yara_detections(path):
+    if type(path) is autodict:
+        return [-1]
+
     detects = []
     for f in os.listdir(YARA_RULES_PATH):
         rule = YARA_RULES_PATH + os.path.sep + f
@@ -329,20 +332,13 @@ def get_yara_detections(files):
     print("yara detections:")
     for prog in files:
         print_s(prog + ";")  # prog name
-        detects = 0
-        detects_o = 0
-        detects32 = 0
-        detects32_o = 0
-        try:
-            detects = _get_yara_detections(files[prog]["clang"])
-            detects_o = _get_yara_detections(files[prog]["opt"])
-            detects32 = _get_yara_detections(files[prog]["clang32"])
-            detects32_o = _get_yara_detections(files[prog]["opt32"])
-        except:
-            continue
+        detects = _get_yara_detections(files[prog]["clang"])
+        detects_o = _get_yara_detections(files[prog]["opt"])
+        detects32 = _get_yara_detections(files[prog]["clang32"])
+        detects32_o = _get_yara_detections(files[prog]["opt32"])
 
-        print_s("{:d};{:d};".format(len(detects), len(detects32)))  # not obfusacted
-        print_s("{:d};{:d};".format(len(detects_o), len(detects32_o)))  # obfusacted
+        print_s("{:d};{:d};".format(len(detects), len(detects_o)))  # 64-bit
+        print_s("{:d};{:d};".format(len(detects32), len(detects32_o)))  # 32-bit
         print_s(set(detects + detects32))  # rule names
         print_s(";")
         print(set(detects_o + detects32_o))  # rule names
@@ -446,8 +442,8 @@ if __name__ == "__main__":
     # print_s("do memory usage increase (set ulimit)?\n> ")
     # if input().startswith("yes"):
     #     get_memory_usage_increase(files)
-    # get_yara_detections(files)
-    get_virus_total(files)
+    get_yara_detections(files)
+    # get_virus_total(files)
     # get_cuckoo("/home/user/.cuckoo/storage/analyses")
 
     print("files:")
